@@ -1,3 +1,5 @@
+
+
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 
 // ─── SUPABASE ─────────────────────────────────────────────────────────────────
@@ -655,7 +657,7 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
         </div>
 
         {/* Gráfico diário de vencimentos */}
-        <BarChartDiario notas={notasRaw}/>
+        <BarChartDiario notas={notas}/>
       </div>
 
       {/* Tarefas do dia */}
@@ -1676,8 +1678,6 @@ function AvisosPage({ tarefas, setTarefas }) {
     return true;
   });
 
-  const pendentesHoje = tarefasRaw.filter(t=>tarefaAtivaHoje(t)&&t.concluidoEm!==today()).length;
-
   return (
     <div style={{padding:"28px 36px",fontFamily:T.font}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"24px"}}>
@@ -2068,7 +2068,7 @@ function FornecedoresPage({ fornecedores, setFornecedores, notas }) {
 
   // Se há um fornecedor selecionado, mostra o relatório
   if (relatorio) {
-    return <RelatorioFornecedor fornecedor={relatorio} notas={notasRaw} onVoltar={()=>setRelatorio(null)}/>;
+    return <RelatorioFornecedor fornecedor={relatorio} notas={notas} onVoltar={()=>setRelatorio(null)}/>;
   }
 
   const filtered = fornecedores.filter(f => {
@@ -2610,4 +2610,3 @@ export default function App() {
     </div>
   );
 }
-
