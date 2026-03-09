@@ -655,7 +655,7 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
         </div>
 
         {/* Gráfico diário de vencimentos */}
-        <BarChartDiario notas={notas}/>
+        <BarChartDiario notas={notasRaw}/>
       </div>
 
       {/* Tarefas do dia */}
@@ -1676,7 +1676,7 @@ function AvisosPage({ tarefas, setTarefas }) {
     return true;
   });
 
-  const pendentesHoje = tarefas.filter(t=>tarefaAtivaHoje(t)&&t.concluidoEm!==today()).length;
+  const pendentesHoje = tarefasRaw.filter(t=>tarefaAtivaHoje(t)&&t.concluidoEm!==today()).length;
 
   return (
     <div style={{padding:"28px 36px",fontFamily:T.font}}>
@@ -2068,7 +2068,7 @@ function FornecedoresPage({ fornecedores, setFornecedores, notas }) {
 
   // Se há um fornecedor selecionado, mostra o relatório
   if (relatorio) {
-    return <RelatorioFornecedor fornecedor={relatorio} notas={notas} onVoltar={()=>setRelatorio(null)}/>;
+    return <RelatorioFornecedor fornecedor={relatorio} notas={notasRaw} onVoltar={()=>setRelatorio(null)}/>;
   }
 
   const filtered = fornecedores.filter(f => {
@@ -2419,10 +2419,10 @@ export default function App() {
   const [session, setSession]              = useState(getSession);
   const [loading, setLoading]              = useState(true);
   const [page,setPage]                     = useState("home");
-  const [notas,setNotasRaw]               = useState([]);
+  const [notasRaw,setNotasRaw]             = useState([]);
   const [showModal,setShowModal]           = useState(false);
-  const [tarefas,setTarefasRaw]           = useState([]);
-  const [fornecedores,setFornecedoresRaw] = useState([]);
+  const [tarefasRaw,setTarefasRaw]         = useState([]);
+  const [fornecedoresRaw,setFornecedoresRaw] = useState([]);
   const [novoFornModal,setNovoFornModal]   = useState(null);
   const [vencDetalhe,setVencDetalhe]       = useState(null);
 
@@ -2524,7 +2524,7 @@ export default function App() {
     setFornecedoresRaw(prev => typeof updater === "function" ? updater(prev) : updater);
   }
   function setTarefas(updater) {
-    const prev = tarefas;
+    const prev = tarefasRaw;
     const next = typeof updater === "function" ? updater(prev) : updater;
     // Detectar mudança e sincronizar
     next.forEach(t => {
@@ -2544,7 +2544,7 @@ export default function App() {
   }
 
   function navTo(p) { setPage(p); setShowModal(false); setVencDetalhe(null); }
-  const pendentesHoje = tarefas.filter(t=>tarefaAtivaHoje(t)&&t.concluidoEm!==today()).length;
+  const pendentesHoje = tarefasRaw.filter(t=>tarefaAtivaHoje(t)&&t.concluidoEm!==today()).length;
 
   async function handleNovoFornecedor(nomeInicial) { setNovoFornModal(nomeInicial||""); }
   async function handleSaveNovoForn(f) {
@@ -2571,9 +2571,6 @@ export default function App() {
     });
   }
 
-  const notas = notasRaw;
-  const tarefas = tarefasRaw;
-  const fornecedoresData = fornecedoresRaw;
 
   if (!session) return <LoginPage onLogin={() => setSession(getSession())}/>;
 
@@ -2593,16 +2590,16 @@ export default function App() {
       <Sidebar page={page} setPage={navTo} badge={pendentesHoje} onLogout={handleLogout} userEmail={session?.user?.email}/>
       <main style={{flex:1,overflowY:"auto"}}>
         {page==="home" && !vencDetalhe && (
-          <HomePage notas={notas} tarefas={tarefas} setTarefas={setTarefas}
+          <HomePage notas={notasRaw} tarefas={tarefasRaw} setTarefas={setTarefas}
             onVerDetalhes={(tipo,titulo)=>setVencDetalhe({tipo,titulo})}/>
         )}
         {page==="home" && vencDetalhe && (
-          <VencimentosDetalhe tipo={vencDetalhe.tipo} titulo={vencDetalhe.titulo} notas={notas} onVoltar={()=>setVencDetalhe(null)}/>
+          <VencimentosDetalhe tipo={vencDetalhe.tipo} titulo={vencDetalhe.titulo} notas={notasRaw} onVoltar={()=>setVencDetalhe(null)}/>
         )}
-        {page==="notas"        && <NotasFiscaisPage notas={notas} setNotas={setNotasPersist} showModal={showModal} setShowModal={setShowModal} fornecedores={fornecedoresData} onNovoFornecedor={handleNovoFornecedor}/>}
-        {page==="boletos"      && <BoletosNaoRecebidosPage notas={notas} setNotas={setNotasPersist}/>}
-        {page==="fornecedores" && <FornecedoresPage fornecedores={fornecedoresData} setFornecedores={setFornecedores} notas={notas}/>}
-        {page==="avisos"       && <AvisosPage tarefas={tarefas} setTarefas={setTarefas}/>}
+        {page==="notas"        && <NotasFiscaisPage notas={notasRaw} setNotas={setNotasPersist} showModal={showModal} setShowModal={setShowModal} fornecedores={fornecedoresRaw} onNovoFornecedor={handleNovoFornecedor}/>}
+        {page==="boletos"      && <BoletosNaoRecebidosPage notas={notasRaw} setNotas={setNotasPersist}/>}
+        {page==="fornecedores" && <FornecedoresPage fornecedores={fornecedoresRaw} setFornecedores={setFornecedores} notas={notasRaw}/>}
+        {page==="avisos"       && <AvisosPage tarefas={tarefasRaw} setTarefas={setTarefas}/>}
       </main>
       {page==="home"&&!vencDetalhe&&(
         <button onClick={()=>{setPage("notas");setTimeout(()=>setShowModal(true),50);}} style={{position:"fixed",bottom:"28px",right:"28px",width:"52px",height:"52px",borderRadius:"50%",background:"linear-gradient(135deg,#1A5173,#1A5173)",border:"none",color:"#fff",fontSize:"26px",cursor:"pointer",boxShadow:"0 6px 20px rgba(37,99,235,.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:40}}>+</button>
@@ -2613,3 +2610,4 @@ export default function App() {
     </div>
   );
 }
+
