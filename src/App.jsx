@@ -206,6 +206,7 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
   const [fornQuery, setFornQuery] = useState(editData?.fornecedor || "");
   const [showDropdown, setShowDropdown] = useState(false);
   const [temObs, setTemObs] = useState(!!(editData?.observacao));
+  const semParcelas = !!(form.parcelasPagas && form.parcelas===1 && form.parcelasPagas.includes(form.vencimentos[0]));
   const set = (f,v) => { setForm(p=>({...p,[f]:v})); setErrors(p=>({...p,[f]:undefined})); };
 
   // Máscara de valor pt-BR
@@ -248,11 +249,14 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
     if(!form.emissao||!form.emissao.match(/^\d{4}-\d{2}-\d{2}$/)) e.emissao="Data inválida (use DD/MM/AAAA)";
     if(!form.valor||isNaN(parseValor(form.valor))) e.valor="Valor inválido";
     if(form.boletosRecebidos===null) e.boletosRecebidos="Selecione uma opção";
-    const allVencValid = form.vencimentos.every(v=>v&&v.match(/^\d{4}-\d{2}-\d{2}$/));
-    if(!allVencValid) e.vencimentos="Preencha todas as datas no formato DD/MM/AAAA";
-    else {
-      const vencAnterior = form.vencimentos.some(v=>v && v < form.emissao);
-      if(vencAnterior) e.vencimentos="Uma ou mais datas de vencimento são anteriores à emissão";
+    const isSemParcelas = !!(form.parcelasPagas && form.parcelas===1 && form.parcelasPagas.includes(form.vencimentos[0]));
+    if (!isSemParcelas) {
+      const allVencValid = form.vencimentos.every(v=>v&&v.match(/^\d{4}-\d{2}-\d{2}$/));
+      if(!allVencValid) e.vencimentos="Preencha todas as datas no formato DD/MM/AAAA";
+      else {
+        const vencAnterior = form.vencimentos.some(v=>v && v < form.emissao);
+        if(vencAnterior) e.vencimentos="Uma ou mais datas de vencimento são anteriores à emissão";
+      }
     }
     setErrors(e); return !Object.keys(e).length;
   }
@@ -324,16 +328,20 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
               onChange={e=>{
                 let v = e.target.value.replace(/\D/g,"");
                 if(v.length>8) v=v.slice(0,8);
-                let fmt="";
-                if(v.length<=2) fmt=v;
-                else if(v.length<=4) fmt=v.slice(0,2)+"/"+v.slice(2);
-                else fmt=v.slice(0,2)+"/"+v.slice(2,4)+"/"+v.slice(4);
-                // convert to YYYY-MM-DD when complete
+                // Auto-preenche o ano atual quando digitar só dia/mês (4 dígitos)
+                const anoAtual = String(new Date().getFullYear());
+                if(v.length===4){
+                  v = v + anoAtual;
+                }
+                let disp="";
+                if(v.length<=2) disp=v;
+                else if(v.length<=4) disp=v.slice(0,2)+"/"+v.slice(2);
+                else disp=v.slice(0,2)+"/"+v.slice(2,4)+"/"+v.slice(4);
                 if(v.length===8){
                   const iso=v.slice(4)+"-"+v.slice(2,4)+"-"+v.slice(0,2);
                   set("emissao",iso);
                 } else {
-                  set("emissao",fmt); // store partial as-is, validate will catch
+                  set("emissao",disp);
                 }
               }}
               style={{...S.input,borderColor:errors.emissao?"#F24E29":"#e2e8f0"}}
@@ -375,16 +383,21 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
               <span style={{fontSize:"16px",fontWeight:700,color:T.text,minWidth:"20px",textAlign:"center"}}>{form.parcelas}</span>
               <button onClick={()=>setParcelas(form.parcelas+1)} style={S.cbtn}>+</button>
               <button type="button" onClick={()=>{
-                setForm(p=>({...p,parcelas:1,vencimentos:[p.vencimentos[0]||today()],parcelasPagas:[p.vencimentos[0]||today()]}));
-              }} style={{marginLeft:"8px",padding:"6px 14px",borderRadius:"20px",fontSize:"12px",fontWeight:700,cursor:"pointer",border:"none",background:form.parcelasPagas&&form.parcelasPagas.length>0&&form.parcelas===1?"#1A5173":T.bg,color:form.parcelasPagas&&form.parcelasPagas.length>0&&form.parcelas===1?"#fff":T.textSub,outline:form.parcelasPagas&&form.parcelasPagas.length>0&&form.parcelas===1?"none":`1.5px solid ${T.border}`,transition:"all .12s"}}>
+                const dataBase = form.emissao && form.emissao.match(/^\d{4}-\d{2}-\d{2}$/) ? form.emissao : today();
+                setForm(p=>({...p,parcelas:1,vencimentos:[dataBase],parcelasPagas:[dataBase],boletosRecebidos:true}));
+              }} style={{marginLeft:"8px",padding:"6px 14px",borderRadius:"20px",fontSize:"12px",fontWeight:700,cursor:"pointer",border:"none",
+                background:semParcelas?"#059669":T.bg,
+                color:semParcelas?"#fff":T.textSub,
+                outline:semParcelas?"none":`1.5px solid ${T.border}`,
+                transition:"all .12s"}}>
                 ✓ Sem parcelas
               </button>
             </div>
-            <span style={{fontSize:"11px",color:T.textMuted,marginTop:"4px",display:"block"}}>
-              {form.parcelasPagas&&form.parcelasPagas.includes(form.vencimentos[0])?"✓ Marcada como quitada":""}
-            </span>
+            {semParcelas && (
+              <span style={{fontSize:"12px",color:"#059669",marginTop:"4px",display:"block",fontWeight:600}}>✓ Nota marcada como quitada — nenhuma parcela a pagar</span>
+            )}
           </div>
-          <div>
+          {!semParcelas && <div>
             <label style={S.label}>Datas de Vencimento das Parcelas <Red/></label>
             <div style={{display:"flex",flexDirection:"column",gap:"7px"}}>
               {Array.from({length:form.parcelas},(_,i)=>(
@@ -415,7 +428,7 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
               ))}
             </div>
             {errors.vencimentos&&<span style={S.error}>{errors.vencimentos}</span>}
-          </div>
+          </div>}
           <div>
             <label style={S.label}>Observação</label>
             <div style={{display:"flex",gap:"6px",marginBottom:temObs?"10px":"0"}}>
@@ -2895,19 +2908,28 @@ export default function App() {
   const [vencDetalhe,setVencDetalhe]       = useState(null);
 
   // ── Carregar dados do Supabase ──────────────────────────────────────────
-  useEffect(() => {
-    if (!session) { setLoading(false); return; }
-    setLoading(true);
-    Promise.all([
-      sbFetch("/rest/v1/notas_fiscais?select=*&order=id"),
-      sbFetch("/rest/v1/fornecedores?select=*&order=id"),
-      sbFetch("/rest/v1/tarefas?select=*&order=id"),
-    ]).then(([nfs, forns, tars]) => {
+  async function loadData(showLoader=true) {
+    if (!session) return;
+    if (showLoader) setLoading(true);
+    try {
+      const [nfs, forns, tars] = await Promise.all([
+        sbFetch("/rest/v1/notas_fiscais?select=*&order=id"),
+        sbFetch("/rest/v1/fornecedores?select=*&order=id"),
+        sbFetch("/rest/v1/tarefas?select=*&order=id"),
+      ]);
       setNotasRaw(nfs.map(dbToNota));
       setFornecedoresRaw(forns.map(dbToFornecedor));
       setTarefasRaw(tars.map(dbToTarefa));
-    }).catch(console.error)
-    .finally(() => setLoading(false));
+    } catch(e) { console.error(e); }
+    finally { if (showLoader) setLoading(false); }
+  }
+
+  useEffect(() => {
+    if (!session) { setLoading(false); return; }
+    loadData(true);
+    // Auto-refresh a cada 60 segundos
+    const interval = setInterval(() => loadData(false), 60000);
+    return () => clearInterval(interval);
   }, [session]);
 
   // ── Setters que sincronizam com Supabase ───────────────────────────────
@@ -2995,15 +3017,28 @@ export default function App() {
   function setFornecedores(updater) {
     setFornecedoresRaw(prev => typeof updater === "function" ? updater(prev) : updater);
   }
-  function setTarefas(updater) {
+  async function setTarefas(updater) {
     const prev = tarefasRaw;
     const next = typeof updater === "function" ? updater(prev) : updater;
-    // Detectar mudança e sincronizar
-    next.forEach(t => {
+    // Novos itens
+    for (const t of next) {
       const old = prev.find(o => o.id === t.id);
-      if (!old) { saveTarefa(t); return; }
-      if (JSON.stringify(old) !== JSON.stringify(t)) saveTarefa(t);
-    });
+      if (!old) {
+        // insert — saveTarefa retorna o item com ID real do banco
+        const body = tarefaToDB(t);
+        try {
+          const [created] = await sbFetch("/rest/v1/tarefas", { method:"POST", body:JSON.stringify(body) });
+          // substitui o item temporário pelo item com ID real
+          setTarefasRaw(cur => [...cur.filter(x=>x.id!==t.id), dbToTarefa(created)]);
+        } catch(e) { console.error("Erro ao salvar tarefa:", e); }
+        return;
+      }
+      if (JSON.stringify(old) !== JSON.stringify(t)) {
+        // update
+        saveTarefa(t);
+      }
+    }
+    // Deletados
     prev.forEach(t => { if (!next.find(n => n.id === t.id)) deleteTarefa(t.id); });
     setTarefasRaw(next);
   }
