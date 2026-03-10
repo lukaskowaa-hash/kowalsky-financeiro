@@ -3057,8 +3057,40 @@ export default function App() {
   }
 
   // ── Wrappers para compatibilidade com os componentes existentes ─────────
-  function setFornecedores(updater) {
-    setFornecedoresRaw(prev => typeof updater === "function" ? updater(prev) : updater);
+  async function setFornecedores(updater) {
+    const prev = fornecedoresRaw;
+    const next = typeof updater === "function" ? updater(prev) : updater;
+    // Novos itens — salvar no banco
+    for (const f of next) {
+      const old = prev.find(o => o.id === f.id);
+      if (!old) {
+        try {
+          const [created] = await sbFetch("/rest/v1/fornecedores", {
+            method: "POST", body: JSON.stringify({ codigo: f.codigo, nome: f.nome }),
+          });
+          const novo = dbToFornecedor(created);
+          setFornecedoresRaw(cur => [...cur.filter(x => x.id !== f.id), novo]);
+        } catch(e) { console.error("Erro ao salvar fornecedor:", e); }
+        return;
+      }
+      if (JSON.stringify(old) !== JSON.stringify(f)) {
+        // Atualização
+        try {
+          await sbFetch(`/rest/v1/fornecedores?id=eq.${f.id}`, {
+            method: "PATCH", body: JSON.stringify({ codigo: f.codigo, nome: f.nome }),
+          });
+        } catch(e) { console.error("Erro ao atualizar fornecedor:", e); }
+      }
+    }
+    // Deletados
+    for (const f of prev) {
+      if (!next.find(n => n.id === f.id)) {
+        try {
+          await sbFetch(`/rest/v1/fornecedores?id=eq.${f.id}`, { method: "DELETE" });
+        } catch(e) { console.error("Erro ao deletar fornecedor:", e); }
+      }
+    }
+    setFornecedoresRaw(next);
   }
   async function setTarefas(updater) {
     const prev = tarefasRaw;
