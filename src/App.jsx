@@ -245,11 +245,15 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
     if(!form.fornecedor.trim()) e.fornecedor="Obrigatório";
     if(!form.empresa)           e.empresa="Selecione a empresa";
     if(!form.numero.trim())     e.numero="Obrigatório";
-    if(!form.emissao)           e.emissao="Obrigatório";
+    if(!form.emissao||!form.emissao.match(/^\d{4}-\d{2}-\d{2}$/)) e.emissao="Data inválida (use DD/MM/AAAA)";
     if(!form.valor||isNaN(parseValor(form.valor))) e.valor="Valor inválido";
     if(form.boletosRecebidos===null) e.boletosRecebidos="Selecione uma opção";
-    const vencAnterior = form.vencimentos.some(v=>v && v < form.emissao);
-    if(vencAnterior) e.vencimentos="Uma ou mais datas de vencimento são anteriores à emissão";
+    const allVencValid = form.vencimentos.every(v=>v&&v.match(/^\d{4}-\d{2}-\d{2}$/));
+    if(!allVencValid) e.vencimentos="Preencha todas as datas no formato DD/MM/AAAA";
+    else {
+      const vencAnterior = form.vencimentos.some(v=>v && v < form.emissao);
+      if(vencAnterior) e.vencimentos="Uma ou mais datas de vencimento são anteriores à emissão";
+    }
     setErrors(e); return !Object.keys(e).length;
   }
   function handleSave() {
@@ -312,7 +316,29 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
           </div>
           <div>
             <label style={S.label}>Data de Emissão <Red/></label>
-            <input type="date" value={form.emissao} onChange={e=>set("emissao",e.target.value)} style={S.input}/>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="DD/MM/AAAA"
+              value={form.emissao ? form.emissao.split("-").reverse().join("/") : ""}
+              onChange={e=>{
+                let v = e.target.value.replace(/\D/g,"");
+                if(v.length>8) v=v.slice(0,8);
+                let fmt="";
+                if(v.length<=2) fmt=v;
+                else if(v.length<=4) fmt=v.slice(0,2)+"/"+v.slice(2);
+                else fmt=v.slice(0,2)+"/"+v.slice(2,4)+"/"+v.slice(4);
+                // convert to YYYY-MM-DD when complete
+                if(v.length===8){
+                  const iso=v.slice(4)+"-"+v.slice(2,4)+"-"+v.slice(0,2);
+                  set("emissao",iso);
+                } else {
+                  set("emissao",fmt); // store partial as-is, validate will catch
+                }
+              }}
+              style={{...S.input,borderColor:errors.emissao?"#F24E29":"#e2e8f0"}}
+            />
+            {errors.emissao&&<span style={S.error}>{errors.emissao}</span>}
           </div>
           <div>
             <label style={S.label}>Valor total da Nota <Red/></label>
@@ -344,11 +370,19 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
           </div>
           <div>
             <label style={S.label}>Quantidade de parcelas <Red/></label>
-            <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:"12px",flexWrap:"wrap"}}>
               <button onClick={()=>setParcelas(form.parcelas-1)} style={S.cbtn}>−</button>
               <span style={{fontSize:"16px",fontWeight:700,color:T.text,minWidth:"20px",textAlign:"center"}}>{form.parcelas}</span>
               <button onClick={()=>setParcelas(form.parcelas+1)} style={S.cbtn}>+</button>
+              <button type="button" onClick={()=>{
+                setForm(p=>({...p,parcelas:1,vencimentos:[p.vencimentos[0]||today()],parcelasPagas:[p.vencimentos[0]||today()]}));
+              }} style={{marginLeft:"8px",padding:"6px 14px",borderRadius:"20px",fontSize:"12px",fontWeight:700,cursor:"pointer",border:"none",background:form.parcelasPagas&&form.parcelasPagas.length>0&&form.parcelas===1?"#1A5173":T.bg,color:form.parcelasPagas&&form.parcelasPagas.length>0&&form.parcelas===1?"#fff":T.textSub,outline:form.parcelasPagas&&form.parcelasPagas.length>0&&form.parcelas===1?"none":`1.5px solid ${T.border}`,transition:"all .12s"}}>
+                ✓ Sem parcelas
+              </button>
             </div>
+            <span style={{fontSize:"11px",color:T.textMuted,marginTop:"4px",display:"block"}}>
+              {form.parcelasPagas&&form.parcelasPagas.includes(form.vencimentos[0])?"✓ Marcada como quitada":""}
+            </span>
           </div>
           <div>
             <label style={S.label}>Datas de Vencimento das Parcelas <Red/></label>
@@ -356,7 +390,27 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
               {Array.from({length:form.parcelas},(_,i)=>(
                 <div key={i} style={{display:"flex",alignItems:"center",gap:"10px"}}>
                   <span style={{fontSize:"12.5px",color:T.textSub,minWidth:"60px"}}>Parcela {i+1}</span>
-                  <input type="date" value={form.vencimentos[i]||""} onChange={e=>{const v=[...form.vencimentos];v[i]=e.target.value;setForm(p=>({...p,vencimentos:v}));setErrors(p=>({...p,vencimentos:undefined}));}} style={{...S.input,flex:1,borderColor:(form.vencimentos[i]&&form.emissao&&form.vencimentos[i]<form.emissao)?"#F24E29":"#e2e8f0"}}/>
+                  <input
+                    type="text" inputMode="numeric" placeholder="DD/MM/AAAA"
+                    value={form.vencimentos[i] && form.vencimentos[i].includes("-") ? form.vencimentos[i].split("-").reverse().join("/") : (form.vencimentos[i]||"")}
+                    onChange={e=>{
+                      let raw=e.target.value.replace(/\D/g,"");
+                      if(raw.length>8) raw=raw.slice(0,8);
+                      let disp="";
+                      if(raw.length<=2) disp=raw;
+                      else if(raw.length<=4) disp=raw.slice(0,2)+"/"+raw.slice(2);
+                      else disp=raw.slice(0,2)+"/"+raw.slice(2,4)+"/"+raw.slice(4);
+                      const arr=[...form.vencimentos];
+                      if(raw.length===8){
+                        arr[i]=raw.slice(4)+"-"+raw.slice(2,4)+"-"+raw.slice(0,2);
+                      } else {
+                        arr[i]=disp;
+                      }
+                      setForm(p=>({...p,vencimentos:arr}));
+                      setErrors(p=>({...p,vencimentos:undefined}));
+                    }}
+                    style={{...S.input,flex:1,borderColor:(form.vencimentos[i]&&form.emissao&&form.vencimentos[i]<form.emissao)?"#F24E29":"#e2e8f0"}}
+                  />
                 </div>
               ))}
             </div>
@@ -536,6 +590,8 @@ function BarChartDiario({ notas }) {
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  HOME
+const PIE_COLORS = ["#1A5173","#F24E29","#5B89A6","#17b26a","#f79009","#7c3aed","#0ea5e9","#db2777","#64748b"];
+
 function PieChartFornecedores({ notas }) {
   const [periodo, setPeriodo] = React.useState("ano");
   const [hover, setHover]     = React.useState(null);
