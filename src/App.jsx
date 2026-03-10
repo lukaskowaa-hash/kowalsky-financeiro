@@ -1,6 +1,12 @@
-
-
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+
+// ─── SHEETJS (Excel export) ───────────────────────────────────────────────────
+if (typeof window !== "undefined" && !window._xlsxLoaded) {
+  window._xlsxLoaded = true;
+  const s = document.createElement("script");
+  s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+  document.head.appendChild(s);
+}
 
 // ─── SUPABASE ─────────────────────────────────────────────────────────────────
 const SUPA_URL = "https://mmfhgdrnjobdpcsydssd.supabase.co";
@@ -199,6 +205,7 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
   const [errors, setErrors] = useState({});
   const [fornQuery, setFornQuery] = useState(editData?.fornecedor || "");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [temObs, setTemObs] = useState(!!(editData?.observacao));
   const set = (f,v) => { setForm(p=>({...p,[f]:v})); setErrors(p=>({...p,[f]:undefined})); };
 
   // Máscara de valor pt-BR
@@ -357,7 +364,24 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
           </div>
           <div>
             <label style={S.label}>Observação</label>
-            <textarea value={form.observacao} onChange={e=>set("observacao",e.target.value)} placeholder="Alguma observação..." rows={2} style={{...S.input,resize:"vertical",minHeight:"56px"}}/>
+            <div style={{display:"flex",gap:"6px",marginBottom:temObs?"10px":"0"}}>
+              {[["nao","Não"],["sim","Sim"]].map(([v,l])=>(
+                <button key={v} type="button"
+                  onClick={()=>{ setTemObs(v==="sim"); if(v==="nao") set("observacao",""); }}
+                  style={{padding:"6px 18px",borderRadius:"20px",fontSize:"12.5px",fontWeight:600,cursor:"pointer",border:"none",
+                    background:(v==="sim"?temObs:!temObs)?T.primary:T.bg,
+                    color:(v==="sim"?temObs:!temObs)?"#fff":T.textMuted,
+                    outline:(v==="sim"?temObs:!temObs)?"none":`1.5px solid ${T.border}`,
+                    transition:"all .12s"}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            {temObs && (
+              <textarea value={form.observacao} onChange={e=>set("observacao",e.target.value)}
+                placeholder="Digite a observação..." rows={2} autoFocus
+                style={{...S.input,resize:"vertical",minHeight:"56px"}}/>
+            )}
           </div>
 
           <div style={{display:"flex",gap:"10px",marginTop:"4px"}}>
@@ -512,6 +536,151 @@ function BarChartDiario({ notas }) {
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  HOME
+function PieChartFornecedores({ notas }) {
+  const [periodo, setPeriodo] = React.useState("ano");
+  const [hover, setHover]     = React.useState(null);
+  const td  = today();
+  const mesKey = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,"0")}`;
+  const p3  = (() => { const d = new Date(); d.setMonth(d.getMonth()+3); return d.toISOString().split("T")[0]; })();
+
+  const periodoFn = {
+    mes:   v => v.startsWith(mesKey),
+    trim:  v => v >= td && v <= p3,
+    ano:   v => v.startsWith(new Date().getFullYear().toString()),
+  }[periodo];
+
+  // Agrupar por fornecedor — APENAS parcelas em aberto (não pagas)
+  const mapa = {};
+  notas.forEach(n => {
+    const nome = fnome(n.fornecedor) || "Sem fornecedor";
+    n.vencimentos.forEach(v => {
+      if (!periodoFn(v)) return;
+      if (parcelaStatusEfetivo(n, v) === "pago") return; // ignora pagas
+      if (!mapa[nome]) mapa[nome] = 0;
+      mapa[nome] += n.valor / n.parcelas;
+    });
+  });
+
+  // Ordenar por valor desc, limitar 8 + "Outros"
+  let itens = Object.entries(mapa)
+    .map(([nome, valor]) => ({ nome, valor }))
+    .sort((a, b) => b.valor - a.valor);
+
+  if (itens.length > 8) {
+    const outros = itens.slice(8).reduce((s, i) => s + i.valor, 0);
+    itens = [...itens.slice(0, 8), ...(outros > 0 ? [{ nome: "Outros", valor: outros }] : [])];
+  }
+
+  const total = itens.reduce((s, i) => s + i.valor, 0);
+
+  if (total === 0) return (
+    <div style={{background:T.surface,borderRadius:T.radius,padding:"24px",boxShadow:T.shadow,border:`1px solid ${T.border}`,marginTop:"16px"}}>
+      <p style={{margin:0,fontSize:"13px",fontWeight:600,color:T.text}}>Valor em Aberto por Fornecedor</p>
+      <p style={{margin:"24px 0",textAlign:"center",color:T.textMuted,fontSize:"13px"}}>Nenhuma parcela em aberto no período</p>
+    </div>
+  );
+
+  // Calcular fatias SVG (donut)
+  const SIZE = 190, CX = SIZE/2, CY = SIZE/2, R = 80, RI = 46;
+  let angle = -Math.PI / 2;
+  const fatias = itens.map((it, idx) => {
+    const pct   = it.valor / total;
+    const sweep = pct * 2 * Math.PI;
+    const a1 = angle, a2 = angle + sweep;
+    const cos1 = Math.cos(a1), sin1 = Math.sin(a1);
+    const cos2 = Math.cos(a2), sin2 = Math.sin(a2);
+    const large = sweep > Math.PI ? 1 : 0;
+    const path = [
+      `M ${CX+RI*cos1} ${CY+RI*sin1}`,
+      `L ${CX+R*cos1} ${CY+R*sin1}`,
+      `A ${R} ${R} 0 ${large} 1 ${CX+R*cos2} ${CY+R*sin2}`,
+      `L ${CX+RI*cos2} ${CY+RI*sin2}`,
+      `A ${RI} ${RI} 0 ${large} 0 ${CX+RI*cos1} ${CY+RI*sin1}`,
+      "Z"
+    ].join(" ");
+    angle = a2;
+    return { ...it, path, color: PIE_COLORS[idx % PIE_COLORS.length], pct, idx };
+  });
+
+  const periodoLabel = { mes: "Este mês", trim: "Próximos 3 meses", ano: "Este ano" }[periodo];
+
+  return (
+    <div style={{background:T.surface,borderRadius:T.radius,padding:"20px 22px",boxShadow:T.shadow,border:`1px solid ${T.border}`,marginTop:"16px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"18px"}}>
+        <div>
+          <p style={{margin:0,fontSize:"13px",fontWeight:600,color:T.text}}>Valor em Aberto por Fornecedor</p>
+          <p style={{margin:"2px 0 0",fontSize:"11.5px",color:T.textMuted}}>Apenas parcelas não quitadas — {periodoLabel.toLowerCase()}</p>
+        </div>
+        <div style={{display:"flex",gap:"4px"}}>
+          {[["mes","Mês"],["trim","3 meses"],["ano","Ano"]].map(([k,l])=>(
+            <button key={k} onClick={()=>setPeriodo(k)}
+              style={{padding:"5px 11px",borderRadius:"20px",fontSize:"12px",fontWeight:600,cursor:"pointer",border:"none",
+                background:periodo===k?T.primary:"transparent",
+                color:periodo===k?"#fff":T.textSub,
+                outline:periodo!==k?`1.5px solid ${T.border}`:"none"}}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{display:"flex",alignItems:"center",gap:"32px",flexWrap:"wrap"}}>
+        {/* Donut SVG */}
+        <div style={{position:"relative",flexShrink:0}}>
+          <svg width={SIZE} height={SIZE} style={{overflow:"visible"}}>
+            {fatias.map((f,i)=>(
+              <path key={f.nome} d={f.path} fill={f.color}
+                opacity={hover!==null && hover!==i ? 0.5 : 1}
+                style={{cursor:"pointer",transition:"all .15s",
+                  transform: hover===i ? "scale(1.05)" : "scale(1)",
+                  transformOrigin:`${CX}px ${CY}px`,
+                  filter: hover===i ? "drop-shadow(0 2px 6px rgba(0,0,0,.2))" : "none"}}
+                onMouseEnter={()=>setHover(i)}
+                onMouseLeave={()=>setHover(null)}/>
+            ))}
+          </svg>
+          {/* Centro */}
+          <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center",pointerEvents:"none",width:"70px"}}>
+            {hover!==null ? (
+              <>
+                <div style={{fontSize:"9.5px",color:T.textMuted,lineHeight:1.3,marginBottom:"2px"}}>{fatias[hover].nome}</div>
+                <div style={{fontSize:"13px",fontWeight:800,color:fatias[hover].color}}>{Math.round(fatias[hover].pct*100)}%</div>
+              </>
+            ) : (
+              <>
+                <div style={{fontSize:"9.5px",color:T.textMuted}}>Total</div>
+                <div style={{fontSize:"10.5px",fontWeight:800,color:T.text,fontFamily:T.mono}}>{fmt(total)}</div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Legenda */}
+        <div style={{flex:1,minWidth:"200px",display:"flex",flexDirection:"column",gap:"5px"}}>
+          {fatias.map((f,i)=>(
+            <div key={f.nome}
+              style={{display:"flex",alignItems:"center",gap:"8px",padding:"5px 8px",borderRadius:T.radiusSm,
+                background:hover===i?T.bg:"transparent",cursor:"pointer",transition:"background .12s"}}
+              onMouseEnter={()=>setHover(i)} onMouseLeave={()=>setHover(null)}>
+              <div style={{width:"10px",height:"10px",borderRadius:"3px",background:f.color,flexShrink:0}}/>
+              <span style={{flex:1,fontSize:"12.5px",color:T.text,fontWeight:hover===i?600:400,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{f.nome}</span>
+              <span style={{fontSize:"12px",fontFamily:T.mono,color:T.text,fontWeight:600,flexShrink:0}}>{fmt(f.valor)}</span>
+              <span style={{fontSize:"11px",color:T.textMuted,width:"32px",textAlign:"right",flexShrink:0}}>{Math.round(f.pct*100)}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  FILTRO ESTILO EXCEL
+// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+//  FILTRO DE DATA (intervalo)
+// ═══════════════════════════════════════════════════════════════════════════
+
 // ═══════════════════════════════════════════════════════════════════════════
 function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
   const td=today(), tm=tomorrow(), ew=endOfWeek();
@@ -549,6 +718,138 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
   const parcelasHoje   = contarParcelasNoPeriodo(v => v === td);
   const parcelasAmanha = contarParcelasNoPeriodo(v => v === tm);
   const parcelasSemana = contarParcelasNoPeriodo(v => v >= td && v <= ew);
+
+  function exportXLSX() {
+    // Descobrir max parcelas
+    const maxParc = Math.max(...filtered.map(n => n.parcelas || 1));
+
+    // Cabeçalho dinâmico
+    const hdr = [
+      "FORNECEDOR","EMPRESA","NOTA FISCAL","DATA DE EMISSÃO",
+      "VALOR DA NOTA","BOLETO RECEBIDO","PARCELAS",
+      "VENCIMENTO","VALOR DA PARCELA",
+    ];
+    for (let i = 2; i <= maxParc; i++) hdr.push(`VENCIMENTO P${i}`);
+
+    const rows = filtered.map(n => {
+      const parcVal = n.parcelas > 0 ? (n.valor / n.parcelas) : n.valor;
+      const row = [
+        fnome(n.fornecedor),
+        n.empresa,
+        n.numero,
+        fdate(n.emissao),
+        n.valor,
+        n.boletosRecebidos ? "BOLETO RECEBIDO" : "BOLETO NÃO RECEBIDO",
+        n.parcelas,
+        fdate(n.vencimentos[0]) || "",
+        n.parcelas > 1 ? parcVal : "",
+      ];
+      for (let i = 1; i < maxParc; i++) {
+        row.push(fdate(n.vencimentos[i]) || "");
+      }
+      return row;
+    });
+
+    // Montar worksheet
+    const wsData = [hdr, ...rows];
+    const XLSX = window.XLSX;
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Larguras de coluna
+    ws["!cols"] = [
+      {wch:30},{wch:14},{wch:14},{wch:16},
+      {wch:16},{wch:22},{wch:10},
+      {wch:16},{wch:18},
+      ...Array(Math.max(0, maxParc-1)).fill({wch:16}),
+    ];
+
+    // Estilo do cabeçalho (azul escuro + texto branco)
+    const headerStyle = {
+      font: { bold: true, color: { rgb: "FFFFFF" }, name: "Arial", sz: 11 },
+      fill: { fgColor: { rgb: "1A5173" }, patternType: "solid" },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true },
+      border: {
+        top:    { style: "thin", color: { rgb: "CCCCCC" } },
+        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+        left:   { style: "thin", color: { rgb: "CCCCCC" } },
+        right:  { style: "thin", color: { rgb: "CCCCCC" } },
+      }
+    };
+
+    // Estilo linha par (branco)
+    const evenStyle = {
+      font: { name: "Arial", sz: 10, color: { rgb: "111111" } },
+      fill: { fgColor: { rgb: "FFFFFF" }, patternType: "solid" },
+      alignment: { vertical: "center" },
+      border: {
+        top:    { style: "thin", color: { rgb: "E2E8F0" } },
+        bottom: { style: "thin", color: { rgb: "E2E8F0" } },
+        left:   { style: "thin", color: { rgb: "E2E8F0" } },
+        right:  { style: "thin", color: { rgb: "E2E8F0" } },
+      }
+    };
+
+    // Estilo linha ímpar (azul claro)
+    const oddStyle = {
+      ...evenStyle,
+      fill: { fgColor: { rgb: "EEF4F9" }, patternType: "solid" },
+    };
+
+    // Estilo valor numérico
+    const numStyle = (even) => ({
+      ...(even ? evenStyle : oddStyle),
+      alignment: { horizontal: "right", vertical: "center" },
+      numFmt: "R$ #,##0.00",
+    });
+
+    // Aplicar estilos a todas as células
+    const range = XLSX.utils.decode_range(ws["!ref"]);
+    for (let R = range.s.r; R <= range.e.r; R++) {
+      for (let C = range.s.c; C <= range.e.c; C++) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[addr]) ws[addr] = { v: "", t: "s" };
+        if (R === 0) {
+          ws[addr].s = headerStyle;
+        } else {
+          const isEven = R % 2 === 0;
+          // Colunas de valor (4=valor nota, 8=valor parcela)
+          if (C === 4 || C === 8) {
+            ws[addr].s = numStyle(isEven);
+            if (ws[addr].v !== "") { ws[addr].t = "n"; ws[addr].z = "R$ #,##0.00"; }
+          } else {
+            ws[addr].s = isEven ? evenStyle : oddStyle;
+          }
+        }
+      }
+    }
+
+    // Congelar primeira linha
+    ws["!freeze"] = { xSplit: 0, ySplit: 1 };
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Notas Fiscais");
+
+    // Linha de totais
+    const totalRow = Array(hdr.length).fill("");
+    totalRow[0] = "TOTAL";
+    totalRow[4] = filtered.reduce((s, n) => s + (n.valor || 0), 0);
+    XLSX.utils.sheet_add_aoa(ws, [totalRow], { origin: -1 });
+    const totalRowIdx = wsData.length;
+    hdr.forEach((_, C) => {
+      const addr = XLSX.utils.encode_cell({ r: totalRowIdx, c: C });
+      if (!ws[addr]) ws[addr] = { v: "", t: "s" };
+      ws[addr].s = {
+        font: { bold: true, name: "Arial", sz: 11, color: { rgb: "1A5173" } },
+        fill: { fgColor: { rgb: "C4DDF2" }, patternType: "solid" },
+        alignment: C === 4 ? { horizontal: "right" } : {},
+        border: headerStyle.border,
+      };
+      if (C === 4) { ws[addr].t = "n"; ws[addr].z = "R$ #,##0.00"; }
+    });
+
+    const hoje = new Date().toISOString().split("T")[0];
+    XLSX.writeFile(wb, `notas_fiscais_${hoje}.xlsx`);
+  }
 
   const vencHoje   = notasComParcelaNoperiodo(v => v === td);
   const vencAmanha = notasComParcelaNoperiodo(v => v === tm);
@@ -696,6 +997,9 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
           </div>
         );
       })()}
+
+      {/* Gráfico de Pizza */}
+      <PieChartFornecedores notas={notas}/>
     </div>
   );
 }
@@ -1012,7 +1316,18 @@ function NotasFiscaisPage({ notas, setNotas, showModal, setShowModal, fornecedor
                       <td style={{padding:"12px 14px",color:T.textSub,textAlign:"center"}}>{n.parcelas}</td>
                       <td style={{padding:"12px 14px"}}><span style={{fontSize:"11.5px",fontWeight:500,padding:"2px 9px",borderRadius:"20px",background:st.bg,color:st.color}}>{st.label}</span></td>
                       <td style={{padding:"12px 14px"}} onClick={e=>e.stopPropagation()}>
-                        <div style={{display:"flex",gap:"4px"}}>
+                        <div style={{display:"flex",gap:"4px",alignItems:"center"}}>
+                          {n.observacao && (
+                            <div style={{position:"relative",display:"inline-flex"}}
+                              onMouseEnter={e=>{ const t=e.currentTarget.querySelector(".obs-tt"); if(t) t.style.opacity="1"; }}
+                              onMouseLeave={e=>{ const t=e.currentTarget.querySelector(".obs-tt"); if(t) t.style.opacity="0"; }}>
+                              <button title={n.observacao}
+                                style={{padding:"4px 8px",borderRadius:"6px",border:`1.5px solid ${T.border}`,background:"#f0f6ff",cursor:"pointer",fontSize:"13px",lineHeight:1,color:"#1A5173"}}>💬</button>
+                              <div className="obs-tt" style={{position:"absolute",bottom:"calc(100% + 6px)",left:"50%",transform:"translateX(-50%)",background:"#1e293b",color:"#f8fafc",fontSize:"12px",padding:"7px 11px",borderRadius:"8px",whiteSpace:"pre-wrap",maxWidth:"220px",lineHeight:"1.4",zIndex:99,boxShadow:"0 4px 14px rgba(0,0,0,.25)",pointerEvents:"none",opacity:0,transition:"opacity .15s"}}>
+                                {n.observacao}
+                              </div>
+                            </div>
+                          )}
                           <button onClick={()=>setEditNota({...n,valor:n.valor.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})})} style={{padding:"4px 10px",borderRadius:"6px",border:`1.5px solid ${T.border}`,background:T.surface,cursor:"pointer",fontSize:"12px",fontWeight:500,color:T.textSub,fontFamily:T.font}}>Editar</button>
                           <button onClick={()=>setDeleteId(n.id)} style={{padding:"4px 10px",borderRadius:"6px",border:"1.5px solid #fdecea",background:"#fff5f5",cursor:"pointer",fontSize:"12px",fontWeight:500,color:"#F24E29",fontFamily:T.font}}>✕</button>
                         </div>
@@ -1425,11 +1740,12 @@ const DIAS_SEMANA = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sá
 function parcelaStatusEfetivo(nota, venc) {
   if (nota.parcelasPagas && nota.parcelasPagas.includes(venc)) return "pago";
   if (nota.boletosRecebidos && venc < today()) return "pago";
-  return nota.status;
+  return "pendente";
 }
 
 // Status calculado automaticamente — nunca manual
 function statusNota(n) {
+  if (!n || !n.vencimentos || n.vencimentos.length === 0) return { key:"incompleto", label:"Incompleto", color:"#b42318", bg:"#fdecea" };
   const td = new Date().toISOString().split("T")[0];
   const todasPagas = n.vencimentos.every(v => parcelaStatusEfetivo(n, v) === "pago");
   if (todasPagas)          return { key:"quitado",    label:"Quitado",    color:"#166534", bg:"#dcfce7" };
@@ -1672,6 +1988,8 @@ function AvisosPage({ tarefas, setTarefas }) {
     setTarefas(ts=>ts.map(t=>t.id===id?{...t,concluidoEm:null}:t));
   }
 
+  const pendentesHoje = tarefas.filter(t=>tarefaAtivaHoje(t)&&t.concluidoEm!==today()).length;
+
   const filtradas = tarefas.filter(t => {
     if (filtro==="hoje")      return tarefaAtivaHoje(t) && t.concluidoEm!==today();
     if (filtro==="concluidas") return t.concluidoEm===today();
@@ -1774,87 +2092,204 @@ function AvisosPage({ tarefas, setTarefas }) {
 //  RELATÓRIO POR FORNECEDOR
 // ═══════════════════════════════════════════════════════════════════════════
 function RelatorioFornecedor({ fornecedor, notas, onVoltar }) {
-  const [aba, setAba]           = useState("resumo");
+  const [aba, setAba]           = useState("notas");
   const [expandedId, setExpandedId] = useState(null);
+  const [fDataDe, setFDataDe]   = useState("");
+  const [fDataAte, setFDataAte] = useState("");
+  const [ordenar, setOrdenar]   = useState("recente"); // recente | maior | menor
+  const td = today();
 
   const notasForn = notas.filter(n => n.fornecedorId === fornecedor.id);
-  const today_str = today();
 
-  const totalGeral    = notasForn.reduce((s,n)=>s+n.valor,0);
-  const totalPago     = notasForn.filter(n=>statusNota(n).key==="quitado").reduce((s,n)=>s+n.valor,0);
-  const totalPendente = notasForn.filter(n=>statusNota(n).key!=="quitado").reduce((s,n)=>s+n.valor,0);
-  const totalParcelas = notasForn.reduce((s,n)=>s+n.parcelas,0);
+  // Filtrar por período
+  const notasFiltradas = notasForn.filter(n => {
+    if (fDataDe  && n.emissao < fDataDe)  return false;
+    if (fDataAte && n.emissao > fDataAte) return false;
+    return true;
+  });
+
+  // Ordenar
+  const notasOrdenadas = [...notasFiltradas].sort((a, b) => {
+    if (ordenar === "recente") return b.emissao.localeCompare(a.emissao);
+    if (ordenar === "maior")   return b.valor - a.valor;
+    if (ordenar === "menor")   return a.valor - b.valor;
+    return 0;
+  });
+
+  const totalGeral    = notasFiltradas.reduce((s,n)=>s+n.valor,0);
+  const totalPago     = notasFiltradas.filter(n=>statusNota(n).key==="quitado").reduce((s,n)=>s+n.valor,0);
+  const totalPendente = notasFiltradas.filter(n=>statusNota(n).key!=="quitado").reduce((s,n)=>s+n.valor,0);
+  const totalParcelas = notasFiltradas.reduce((s,n)=>s+n.parcelas,0);
 
   const porEmpresa = EMPRESAS.map((emp,i)=>({
     name:emp, color:["#F24E29","#5B89A6","#1A5173"][i],
-    total:notasForn.filter(n=>n.empresa===emp).reduce((s,n)=>s+n.valor,0),
-    count:notasForn.filter(n=>n.empresa===emp).length,
+    total:notasFiltradas.filter(n=>n.empresa===emp).reduce((s,n)=>s+n.valor,0),
+    count:notasFiltradas.filter(n=>n.empresa===emp).length,
   }));
   const maxEmp = Math.max(...porEmpresa.map(e=>e.total),1);
 
   // Próximos vencimentos
   const parcelas = [];
-  notasForn.forEach(n => {
+  notasFiltradas.forEach(n => {
     n.vencimentos.forEach((v,i)=>{
-      if(v >= today_str) parcelas.push({ notaId:n.id, numero:n.numero, empresa:n.empresa, venc:v, parcela:i+1, total:n.parcelas, valor:n.valor/n.parcelas, status:statusNota(n).key });
+      if(v >= td) parcelas.push({ notaId:n.id, numero:n.numero, empresa:n.empresa, venc:v, parcela:i+1, total:n.parcelas, valor:n.valor/n.parcelas, pago: parcelaStatusEfetivo(n,v)==="pago" });
     });
   });
-  const proximos = parcelas.sort((a,b)=>a.venc.localeCompare(b.venc)).slice(0,8);
+  const proximos = parcelas.sort((a,b)=>a.venc.localeCompare(b.venc)).slice(0,10);
 
-  function exportCSV() {
-    const hdr = ["Número NF","Empresa","Emissão","Valor Total","Parcelas","Status"];
-    const rows = notasForn.map(n=>[n.numero,n.empresa,fdate(n.emissao),fmt(n.valor),n.parcelas,statusNota(n).label]);
-    const csv = [hdr,...rows].map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}));
-    a.download = `relatorio_${fornecedor.codigo}.csv`; a.click();
-  }
+  const temFiltro = fDataDe || fDataAte;
 
   return (
     <div style={{padding:"28px 36px",fontFamily:T.font}}>
 
       {/* Cabeçalho */}
-      <div style={{background:T.surface,borderRadius:T.radius,padding:"20px 24px",marginBottom:"20px",boxShadow:"0 1px 4px rgba(0,0,0,.06)",border:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div style={{background:T.surface,borderRadius:T.radius,padding:"20px 24px",marginBottom:"20px",boxShadow:"0 1px 4px rgba(0,0,0,.06)",border:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"12px"}}>
         <div style={{display:"flex",alignItems:"center",gap:"14px"}}>
-          <button onClick={onVoltar} style={{padding:"7px 14px",borderRadius:T.radiusSm,border:"1.5px solid #e2e8f0",background:T.bg,color:"#475569",fontWeight:600,fontSize:"13px",cursor:"pointer",display:"flex",alignItems:"center",gap:"6px"}}>
+          <button onClick={onVoltar} style={{padding:"7px 14px",borderRadius:T.radiusSm,border:"1.5px solid #e2e8f0",background:T.bg,color:"#475569",fontWeight:600,fontSize:"13px",cursor:"pointer"}}>
             ← Voltar
           </button>
           <div style={{width:"1px",height:"32px",background:"#e2e8f0"}}/>
           <div style={{width:"36px",height:"36px",borderRadius:"9px",background:"#C4DDF2",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px"}}>🏢</div>
           <div>
             <h1 style={{margin:0,fontSize:"18px",fontWeight:800,color:T.text}}>{fornecedor.nome}</h1>
-            <p style={{margin:0,fontSize:"12px",color:T.textMuted}}>Código: {fornecedor.codigo} · Relatório gerado em {fdate(today_str)}</p>
+            <p style={{margin:0,fontSize:"12px",color:T.textMuted}}>Código: {fornecedor.codigo} · {notasForn.length} nota(s) no total</p>
           </div>
         </div>
-        <button onClick={exportCSV} style={{padding:"8px 16px",borderRadius:T.radiusSm,border:"none",background:"linear-gradient(135deg,#1A5173,#1A5173)",color:"#fff",fontWeight:700,fontSize:"13px",cursor:"pointer",boxShadow:"0 4px 12px rgba(37,99,235,.3)"}}>
-          ⬇ Exportar CSV
-        </button>
+
+        {/* Filtros de data + ordenação */}
+        <div style={{display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
+          {/* Período */}
+          <div style={{display:"flex",alignItems:"center",gap:"6px",background:T.bg,padding:"6px 10px",borderRadius:T.radiusSm,border:`1px solid ${T.border}`}}>
+            <span style={{fontSize:"12px",color:T.textMuted,fontWeight:500}}>De</span>
+            <input type="date" value={fDataDe} onChange={e=>setFDataDe(e.target.value)}
+              style={{border:"none",background:"transparent",fontSize:"12.5px",color:T.text,outline:"none",fontFamily:T.font,cursor:"pointer"}}/>
+            <span style={{fontSize:"12px",color:T.textMuted,fontWeight:500}}>até</span>
+            <input type="date" value={fDataAte} onChange={e=>setFDataAte(e.target.value)}
+              style={{border:"none",background:"transparent",fontSize:"12.5px",color:T.text,outline:"none",fontFamily:T.font,cursor:"pointer"}}/>
+            {temFiltro && (
+              <button onClick={()=>{setFDataDe("");setFDataAte("");}}
+                style={{border:"none",background:"none",cursor:"pointer",color:"#F24E29",fontSize:"13px",padding:"0 2px",fontWeight:700}}>✕</button>
+            )}
+          </div>
+
+          {/* Ordenação */}
+          <div style={{display:"flex",gap:"4px"}}>
+            {[["recente","🕐 Recente"],["maior","↑ Maior valor"],["menor","↓ Menor valor"]].map(([k,l])=>(
+              <button key={k} onClick={()=>setOrdenar(k)}
+                style={{padding:"6px 12px",borderRadius:"20px",fontSize:"12px",fontWeight:600,cursor:"pointer",border:"none",
+                  background:ordenar===k?T.primary:"transparent",
+                  color:ordenar===k?"#fff":T.textSub,
+                  outline:ordenar!==k?`1.5px solid ${T.border}`:"none",
+                  transition:"all .12s"}}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Cards resumo */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"14px",marginBottom:"20px"}}>
         {[
           {label:"Total Emitido",  value:fmt(totalGeral),    icon:"💰",c:"#1A5173",bg:"#C4DDF2"},
-          {label:"Total Pendente", value:fmt(totalPendente), icon:"⏳",c:"#d97706",bg:"#fffbeb"},
+          {label:"A Pagar",        value:fmt(totalPendente), icon:"⏳",c:"#d97706",bg:"#fffbeb"},
           {label:"Total Pago",     value:fmt(totalPago),     icon:"✅",c:"#059669",bg:"#ecfdf5"},
           {label:"Total Parcelas", value:totalParcelas,      icon:"📄",c:"#7c3aed",bg:"#f5f3ff"},
-        ].map(c=>(
-          <div key={c.label} style={{background:T.surface,borderRadius:T.radius,padding:"16px 18px",boxShadow:"0 1px 3px rgba(0,0,0,.05)",border:`1px solid ${T.border}`}}>
+        ].map(card=>(
+          <div key={card.label} style={{background:T.surface,borderRadius:T.radius,padding:"16px 18px",boxShadow:"0 1px 3px rgba(0,0,0,.05)",border:`1px solid ${T.border}`}}>
             <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"8px"}}>
-              <div style={{width:"30px",height:"30px",borderRadius:"7px",background:c.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"15px"}}>{c.icon}</div>
-              <span style={{fontSize:"12px",color:T.textSub,fontWeight:500}}>{c.label}</span>
+              <div style={{width:"30px",height:"30px",borderRadius:"7px",background:card.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"15px"}}>{card.icon}</div>
+              <span style={{fontSize:"12px",color:T.textSub,fontWeight:500}}>{card.label}</span>
             </div>
-            <div style={{fontSize:"20px",fontWeight:800,color:T.text}}>{c.value}</div>
+            <div style={{fontSize:"20px",fontWeight:800,color:T.text}}>{card.value}</div>
           </div>
         ))}
       </div>
 
       {/* Abas */}
       <div style={{display:"flex",gap:"4px",marginBottom:"16px",background:T.surface,borderRadius:"10px",padding:"4px",boxShadow:"0 1px 3px rgba(0,0,0,.05)",border:`1px solid ${T.border}`,width:"fit-content"}}>
-        {[["resumo","📊 Resumo"],["notas","📄 Notas Fiscais"],["vencimentos","📅 Próx. Vencimentos"]].map(([k,l])=>(
+        {[["notas","📄 Notas Fiscais"],["resumo","📊 Resumo"],["vencimentos","📅 Próx. Vencimentos"]].map(([k,l])=>(
           <button key={k} onClick={()=>setAba(k)} style={{padding:"7px 18px",borderRadius:"7px",border:"none",cursor:"pointer",fontSize:"13px",fontWeight:600,transition:"all .15s",background:aba===k?"#1A5173":"transparent",color:aba===k?"#fff":"#475569"}}>{l}</button>
         ))}
       </div>
+
+      {/* ── ABA NOTAS FISCAIS ── */}
+      {aba==="notas" && (
+        <div style={{background:T.surface,borderRadius:T.radius,boxShadow:"0 1px 4px rgba(0,0,0,.06)",border:`1px solid ${T.border}`,overflow:"hidden"}}>
+          {notasOrdenadas.length===0 ? (
+            <div style={{padding:"48px",textAlign:"center",color:T.textMuted}}>
+              {temFiltro ? "Nenhuma nota no período selecionado" : "Nenhuma nota fiscal encontrada para este fornecedor"}
+            </div>
+          ) : (
+            <>
+              <div style={{padding:"12px 16px",background:T.bg,borderBottom:`1px solid ${T.border}`,fontSize:"12.5px",color:T.textMuted}}>
+                {notasOrdenadas.length} nota(s) · Total: <strong style={{color:T.text}}>{fmt(totalGeral)}</strong>
+                {temFiltro && <span style={{marginLeft:"8px",color:"#F24E29",fontWeight:600}}>· Filtro ativo</span>}
+              </div>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:"13.5px"}}>
+                <thead>
+                  <tr style={{background:T.bg}}>
+                    <th style={{padding:"11px 14px",width:"32px",borderBottom:"1px solid #e2e8f0"}}></th>
+                    {["Número NF","Empresa","Emissão","Valor Total","Parcelas","Status"].map(h=>(
+                      <th key={h} style={{padding:"11px 16px",textAlign:"left",fontWeight:700,color:T.textSub,fontSize:"11.5px",textTransform:"uppercase",letterSpacing:".05em",borderBottom:"1px solid #e2e8f0",whiteSpace:"nowrap"}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {notasOrdenadas.map((n,i)=>{
+                    const st  = statusNota(n);
+                    const exp = expandedId===n.id;
+                    return (
+                      <React.Fragment key={n.id}>
+                        <tr onClick={()=>setExpandedId(exp?null:n.id)}
+                          style={{borderBottom:exp?"none":i<notasOrdenadas.length-1?"1px solid #f1f5f9":"none",cursor:"pointer",background:exp?"#f0f6ff":""}}
+                          onMouseEnter={e=>{if(!exp)e.currentTarget.style.background="#fafbff"}}
+                          onMouseLeave={e=>{if(!exp)e.currentTarget.style.background=""}}>
+                          <td style={{padding:"12px 14px",textAlign:"center"}}>
+                            <span style={{fontSize:"11px",color:T.textMuted,display:"inline-block",transform:exp?"rotate(90deg)":"rotate(0deg)",transition:"transform .2s"}}>▶</span>
+                          </td>
+                          <td style={{padding:"12px 16px",fontWeight:700,color:T.text,fontFamily:"monospace"}}>{n.numero}</td>
+                          <td style={{padding:"12px 16px"}}><span style={{background:"#f1f5f9",color:"#334155",borderRadius:"6px",padding:"2px 8px",fontSize:"12px",fontWeight:600}}>{n.empresa}</span></td>
+                          <td style={{padding:"12px 16px",color:"#475569"}}>{fdate(n.emissao)}</td>
+                          <td style={{padding:"12px 16px",fontWeight:700,color:T.text}}>{fmt(n.valor)}</td>
+                          <td style={{padding:"12px 16px",textAlign:"center",color:"#475569"}}>{n.parcelas}x</td>
+                          <td style={{padding:"12px 16px"}}><span style={{fontSize:"12px",fontWeight:600,padding:"3px 10px",borderRadius:"20px",background:st.bg,color:st.color}}>{st.label}</span></td>
+                        </tr>
+                        {exp && n.vencimentos.map((v,pi)=>{
+                          const pago = parcelaStatusEfetivo(n,v)==="pago";
+                          return (
+                            <tr key={pi} style={{background:"#f8faff",borderBottom:pi===n.vencimentos.length-1?"1px solid #e2e8f0":"1px solid #eef2ff"}}>
+                              <td/>
+                              <td style={{padding:"9px 16px"}}><span style={{fontFamily:"monospace",fontSize:"12px",color:T.textMuted}}>{n.numero} <strong>P{pi+1}</strong></span></td>
+                              <td colSpan={2} style={{padding:"9px 16px",fontSize:"12.5px",color:"#475569"}}>{fdate(v)}</td>
+                              <td style={{padding:"9px 16px",fontWeight:700,color:pago?"#059669":"#374151"}}>{fmt(n.valor/n.parcelas)}</td>
+                              <td colSpan={2} style={{padding:"9px 16px"}}>
+                                {pago
+                                  ? <span style={{fontSize:"12px",fontWeight:600,color:"#059669",background:"#ecfdf5",padding:"2px 8px",borderRadius:"20px"}}>✓ Pago</span>
+                                  : <span style={{fontSize:"12px",fontWeight:600,color:v<td?"#F24E29":v===td?"#d97706":"#94a3b8"}}>
+                                      {v<td?"⚠️ Vencido":v===td?"⚠️ Vence hoje":`Vence em ${fdate(v)}`}
+                                    </span>
+                                }
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr style={{background:T.bg,borderTop:"2px solid #e2e8f0"}}>
+                    <td colSpan={4} style={{padding:"12px 16px",fontWeight:700,color:"#374151",fontSize:"13px"}}>Total</td>
+                    <td style={{padding:"12px 16px",fontWeight:800,color:T.text,fontSize:"14px"}}>{fmt(totalGeral)}</td>
+                    <td colSpan={2}/>
+                  </tr>
+                </tfoot>
+              </table>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ── ABA RESUMO ── */}
       {aba==="resumo" && (
@@ -1863,7 +2298,7 @@ function RelatorioFornecedor({ fornecedor, notas, onVoltar }) {
             <p style={{margin:"0 0 4px",fontSize:"14px",fontWeight:700,color:T.text}}>Distribuição por Empresa</p>
             <p style={{margin:"0 0 20px",fontSize:"12px",color:T.textMuted}}>Volume de compras por destino</p>
             {porEmpresa.every(e=>e.total===0) ? (
-              <p style={{color:T.textMuted,fontSize:"13px",textAlign:"center",padding:"20px 0"}}>Nenhuma NF cadastrada ainda</p>
+              <p style={{color:T.textMuted,fontSize:"13px",textAlign:"center",padding:"20px 0"}}>Nenhuma NF no período</p>
             ) : (
               <div style={{display:"flex",flexDirection:"column",gap:"16px"}}>
                 {porEmpresa.map(e=>(
@@ -1876,7 +2311,7 @@ function RelatorioFornecedor({ fornecedor, notas, onVoltar }) {
                       </div>
                     </div>
                     <div style={{height:"8px",borderRadius:"99px",background:"#f1f5f9",overflow:"hidden"}}>
-                      <div style={{height:"100%",width:`${(e.total/maxEmp)*100}%`,borderRadius:"99px",background:e.color}}/>
+                      <div style={{height:"100%",width:`${(e.total/maxEmp)*100}%`,borderRadius:"99px",background:e.color,transition:"width .4s"}}/>
                     </div>
                   </div>
                 ))}
@@ -1885,16 +2320,21 @@ function RelatorioFornecedor({ fornecedor, notas, onVoltar }) {
           </div>
           <div style={{background:T.surface,borderRadius:T.radius,padding:"22px 24px",boxShadow:"0 1px 4px rgba(0,0,0,.06)",border:`1px solid ${T.border}`}}>
             <p style={{margin:"0 0 4px",fontSize:"14px",fontWeight:700,color:T.text}}>Status das Notas</p>
-            <p style={{margin:"0 0 20px",fontSize:"12px",color:T.textMuted}}>Situação atual das NFs emitidas</p>
-            {notasForn.length===0 ? (
-              <p style={{color:T.textMuted,fontSize:"13px",textAlign:"center",padding:"20px 0"}}>Nenhuma NF cadastrada ainda</p>
+            <p style={{margin:"0 0 20px",fontSize:"12px",color:T.textMuted}}>Situação atual das NFs no período</p>
+            {notasFiltradas.length===0 ? (
+              <p style={{color:T.textMuted,fontSize:"13px",textAlign:"center",padding:"20px 0"}}>Nenhuma NF no período</p>
             ) : (
               <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
-                {[{key:"aberto",label:"Aberto",color:"#1547a0",bg:"#dbeafe"},{key:"incompleto",label:"Incompleto",color:"#b42318",bg:"#fdecea"},{key:"quitado",label:"Quitado",color:"#166534",bg:"#dcfce7"}].map((v)=>{
-                  const nfs = notasForn.filter(n=>statusNota(n).key===v.key);
+                {[
+                  {key:"aberto",    label:"Aberto",     color:"#1547a0",bg:"#dbeafe"},
+                  {key:"vencido",   label:"Vencido",    color:"#92400e",bg:"#fef3c7"},
+                  {key:"incompleto",label:"Incompleto", color:"#b42318",bg:"#fdecea"},
+                  {key:"quitado",   label:"Quitado",    color:"#166534",bg:"#dcfce7"},
+                ].map(v=>{
+                  const nfs = notasFiltradas.filter(n=>statusNota(n).key===v.key);
                   if(!nfs.length) return null;
                   return (
-                    <div key={k} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",borderRadius:"10px",background:v.bg}}>
+                    <div key={v.key} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",borderRadius:"10px",background:v.bg}}>
                       <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
                         <div style={{width:"8px",height:"8px",borderRadius:"50%",background:v.color}}/>
                         <span style={{fontSize:"13px",fontWeight:600,color:v.color}}>{v.label}</span>
@@ -1907,61 +2347,6 @@ function RelatorioFornecedor({ fornecedor, notas, onVoltar }) {
               </div>
             )}
           </div>
-        </div>
-      )}
-
-      {/* ── ABA NOTAS FISCAIS ── */}
-      {aba==="notas" && (
-        <div style={{background:T.surface,borderRadius:T.radius,boxShadow:"0 1px 4px rgba(0,0,0,.06)",border:`1px solid ${T.border}`,overflow:"hidden"}}>
-          {notasForn.length===0 ? (
-            <div style={{padding:"48px",textAlign:"center",color:T.textMuted}}>Nenhuma nota fiscal encontrada para este fornecedor</div>
-          ) : (
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize:"13.5px"}}>
-              <thead>
-                <tr style={{background:T.bg}}>
-                  <th style={{padding:"11px 14px",width:"32px",borderBottom:"1px solid #e2e8f0"}}></th>
-                  {["Número NF","Empresa","Emissão","Valor Total","Parcelas","Status"].map(h=>(
-                    <th key={h} style={{padding:"11px 16px",textAlign:"left",fontWeight:700,color:T.textSub,fontSize:"11.5px",textTransform:"uppercase",letterSpacing:".05em",borderBottom:"1px solid #e2e8f0",whiteSpace:"nowrap"}}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {notasForn.map((n,i)=>{
-                  const st = statusNota(n);
-                  const exp = expandedId===n.id;
-                  return (
-                    <React.Fragment key={n.id}>
-                      <tr onClick={()=>setExpandedId(exp?null:n.id)}
-                        style={{borderBottom:exp?"none":i<notasForn.length-1?"1px solid #f1f5f9":"none",cursor:"pointer",background:exp?"#f0f6ff":""}}
-                        onMouseEnter={e=>{if(!exp)e.currentTarget.style.background="#fafbff"}}
-                        onMouseLeave={e=>{if(!exp)e.currentTarget.style.background=""}}>
-                        <td style={{padding:"12px 14px",textAlign:"center"}}>
-                          <span style={{fontSize:"11px",color:T.textMuted,display:"inline-block",transform:exp?"rotate(90deg)":"rotate(0deg)",transition:"transform .2s"}}>▶</span>
-                        </td>
-                        <td style={{padding:"12px 16px",fontWeight:700,color:T.text,fontFamily:"monospace"}}>{n.numero}</td>
-                        <td style={{padding:"12px 16px"}}><span style={{background:"#f1f5f9",color:"#334155",borderRadius:"6px",padding:"2px 8px",fontSize:"12px",fontWeight:600}}>{n.empresa}</span></td>
-                        <td style={{padding:"12px 16px",color:"#475569"}}>{fdate(n.emissao)}</td>
-                        <td style={{padding:"12px 16px",fontWeight:700,color:T.text}}>{fmt(n.valor)}</td>
-                        <td style={{padding:"12px 16px",textAlign:"center",color:"#475569"}}>{n.parcelas}x</td>
-                        <td style={{padding:"12px 16px"}}><span style={{fontSize:"12px",fontWeight:600,padding:"3px 10px",borderRadius:"20px",background:st.bg,color:st.color}}>{st.label}</span></td>
-                      </tr>
-                      {exp && n.vencimentos.map((v,pi)=>(
-                        <tr key={pi} style={{background:"#f8faff",borderBottom:pi===n.vencimentos.length-1&&i===notasForn.length-1?"none":pi===n.vencimentos.length-1?"1px solid #e2e8f0":"1px solid #eef2ff"}}>
-                          <td/>
-                          <td style={{padding:"9px 16px"}}><span style={{fontFamily:"monospace",fontSize:"12px",color:T.textMuted}}>{n.numero} <strong>-{pi+1}</strong></span></td>
-                          <td colSpan={2} style={{padding:"9px 16px",fontSize:"12.5px",color:"#475569"}}>{fdate(v)}</td>
-                          <td style={{padding:"9px 16px",fontWeight:700,color:"#374151"}}>{fmt(n.valor/n.parcelas)}</td>
-                          <td colSpan={2} style={{padding:"9px 16px",fontSize:"12px",color:v<today_str?"#F24E29":v===today_str?"#d97706":"#94a3b8",fontWeight:v<=today_str?700:400}}>
-                            {v<today_str?"⚠️ Vencido":v===today_str?"⚠️ Vence hoje":`Vence em ${fdate(v)}`}
-                          </td>
-                        </tr>
-                      ))}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
         </div>
       )}
 
@@ -1981,8 +2366,8 @@ function RelatorioFornecedor({ fornecedor, notas, onVoltar }) {
               </thead>
               <tbody>
                 {proximos.map((p,i)=>{
-                  const dias = Math.ceil((new Date(p.venc)-new Date(today_str))/(1000*60*60*24));
-                  const cor  = dias<=3?"#F24E29":dias<=7?"#d97706":"#059669";
+                  const dias = Math.ceil((new Date(p.venc)-new Date(td))/(1000*60*60*24));
+                  const cor  = p.pago?"#059669":dias<=3?"#F24E29":dias<=7?"#d97706":"#059669";
                   return (
                     <tr key={`${p.notaId}-${p.parcela}`} style={{borderBottom:i<proximos.length-1?"1px solid #f1f5f9":"none"}}
                       onMouseEnter={e=>e.currentTarget.style.background="#fafbff"}
@@ -1993,9 +2378,10 @@ function RelatorioFornecedor({ fornecedor, notas, onVoltar }) {
                       <td style={{padding:"13px 18px",fontWeight:600,color:T.text}}>{fdate(p.venc)}</td>
                       <td style={{padding:"13px 18px",fontWeight:700,color:T.text}}>{fmt(p.valor)}</td>
                       <td style={{padding:"13px 18px"}}>
-                        <span style={{fontSize:"12.5px",fontWeight:700,color:cor}}>
-                          {dias===0?"Hoje":dias===1?"Amanhã":`Em ${dias} dias`}
-                        </span>
+                        {p.pago
+                          ? <span style={{fontSize:"12px",fontWeight:600,color:"#059669"}}>✓ Pago</span>
+                          : <span style={{fontSize:"12.5px",fontWeight:700,color:cor}}>{dias===0?"Hoje":dias===1?"Amanhã":`Em ${dias} dias`}</span>
+                        }
                       </td>
                     </tr>
                   );
@@ -2008,6 +2394,7 @@ function RelatorioFornecedor({ fornecedor, notas, onVoltar }) {
     </div>
   );
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  FORNECEDORES
@@ -2058,6 +2445,7 @@ function FornecedoresPage({ fornecedores, setFornecedores, notas }) {
   const [showModal, setShowModal] = useState(false);
   const [editForn, setEditForn]   = useState(null);
   const [deleteId, setDeleteId]   = useState(null);
+  const [blockDelete, setBlockDelete] = useState(null);
   const [search, setSearch]       = useState("");
   const [relatorio, setRelatorio] = useState(null); // fornecedor selecionado para relatório
 
@@ -2143,7 +2531,11 @@ function FornecedoresPage({ fornecedores, setFornecedores, notas }) {
                       <div style={{display:"flex",gap:"5px"}}>
                         <button onClick={()=>setRelatorio(f)} style={{padding:"5px 10px",borderRadius:"6px",border:"1.5px solid #dbeafe",background:"#C4DDF2",cursor:"pointer",fontSize:"12px",fontWeight:600,color:"#1A5173"}}>📊 Relatório</button>
                         <button onClick={()=>setEditForn({...f})} style={{padding:"5px 10px",borderRadius:"6px",border:"1.5px solid #e2e8f0",background:T.bg,cursor:"pointer",fontSize:"12px",fontWeight:600,color:"#475569"}}>✏️ Editar</button>
-                        <button onClick={()=>setDeleteId(f.id)} style={{padding:"5px 10px",borderRadius:"6px",border:"1.5px solid #fee2e2",background:"#fff5f5",cursor:"pointer",fontSize:"12px",fontWeight:600,color:"#F24E29"}}>🗑</button>
+                        <button onClick={()=>{
+                          const nfsVinculadas = notas.filter(n=>n.fornecedorId===f.id).length;
+                          if(nfsVinculadas>0){ setBlockDelete({nome:f.nome, count:nfsVinculadas}); }
+                          else { setDeleteId(f.id); }
+                        }} style={{padding:"5px 10px",borderRadius:"6px",border:"1.5px solid #fee2e2",background:"#fff5f5",cursor:"pointer",fontSize:"12px",fontWeight:600,color:"#F24E29"}}>🗑</button>
                       </div>
                     </td>
                   </tr>
@@ -2161,11 +2553,31 @@ function FornecedoresPage({ fornecedores, setFornecedores, notas }) {
           <div style={{background:T.surface,borderRadius:T.radius,padding:"28px",maxWidth:"340px",width:"90%",textAlign:"center",boxShadow:"0 24px 60px rgba(0,0,0,.18)"}}>
             <div style={{fontSize:"34px",marginBottom:"10px"}}>🗑️</div>
             <h3 style={{margin:"0 0 8px",color:T.text}}>Excluir fornecedor?</h3>
-            <p style={{color:T.textSub,fontSize:"13.5px",marginBottom:"20px"}}>As notas vinculadas não serão apagadas.</p>
+            <p style={{color:T.textSub,fontSize:"13.5px",marginBottom:"20px"}}>Esta ação não pode ser desfeita.</p>
             <div style={{display:"flex",gap:"10px"}}>
               <button onClick={()=>setDeleteId(null)} style={{flex:1,padding:"10px",borderRadius:T.radiusSm,border:"1.5px solid #e2e8f0",background:T.bg,color:"#475569",fontWeight:600,cursor:"pointer"}}>Cancelar</button>
               <button onClick={()=>{setFornecedores(fs=>fs.filter(f=>f.id!==deleteId));setDeleteId(null);}} style={{flex:1,padding:"10px",borderRadius:T.radiusSm,border:"none",background:"#F24E29",color:"#fff",fontWeight:700,cursor:"pointer"}}>Excluir</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {blockDelete&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.5)",backdropFilter:"blur(4px)",zIndex:60,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{background:T.surface,borderRadius:T.radius,padding:"28px",maxWidth:"380px",width:"90%",textAlign:"center",boxShadow:"0 24px 60px rgba(0,0,0,.18)"}}>
+            <div style={{width:"52px",height:"52px",borderRadius:"50%",background:"#fef3c7",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"24px",margin:"0 auto 14px"}}>⚠️</div>
+            <h3 style={{margin:"0 0 8px",color:T.text,fontSize:"16px"}}>Exclusão bloqueada</h3>
+            <p style={{color:T.textSub,fontSize:"13.5px",marginBottom:"6px"}}>
+              <strong style={{color:T.text}}>{blockDelete.nome}</strong> possui
+            </p>
+            <div style={{background:"#fef3c7",borderRadius:"10px",padding:"12px 16px",marginBottom:"20px",border:"1px solid #fde68a"}}>
+              <span style={{fontSize:"22px",fontWeight:800,color:"#92400e"}}>{blockDelete.count}</span>
+              <span style={{fontSize:"13px",color:"#92400e",marginLeft:"6px",fontWeight:600}}>nota{blockDelete.count>1?"s":""} fiscal vinculada{blockDelete.count>1?"s":""}</span>
+            </div>
+            <p style={{color:T.textMuted,fontSize:"12.5px",marginBottom:"20px"}}>
+              Exclua ou transfira as notas fiscais deste fornecedor antes de removê-lo.
+            </p>
+            <button onClick={()=>setBlockDelete(null)} style={{width:"100%",padding:"10px",borderRadius:T.radiusSm,border:"none",background:T.primary,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:"14px"}}>Entendido</button>
           </div>
         </div>
       )}
@@ -2452,7 +2864,9 @@ export default function App() {
 
   async function saveNota(nota) {
     const body = notaToDB(nota);
-    if (nota.id && typeof nota.id === "number" && nota.id < 900000) {
+    // IDs from DB are small integers; Date.now() temp IDs are 13+ digits
+    const isExisting = nota.id && typeof nota.id === "number" && nota.id < 1000000000;
+    if (isExisting) {
       // update
       await sbFetch(`/rest/v1/notas_fiscais?id=eq.${nota.id}`, {
         method: "PATCH", body: JSON.stringify(body),
@@ -2483,7 +2897,8 @@ export default function App() {
   }
 
   async function saveFornecedor(forn) {
-    if (forn.id) {
+    const isExisting = forn.id && typeof forn.id === 'number' && forn.id < 1000000000;
+    if (isExisting) {
       await sbFetch(`/rest/v1/fornecedores?id=eq.${forn.id}`, {
         method: "PATCH", body: JSON.stringify({ codigo: forn.codigo, nome: forn.nome }),
       });
@@ -2501,7 +2916,8 @@ export default function App() {
 
   async function saveTarefa(tarefa) {
     const body = tarefaToDB(tarefa);
-    if (tarefa.id) {
+    const isExisting = tarefa.id && typeof tarefa.id === "number" && tarefa.id < 1000000000;
+    if (isExisting) {
       await sbFetch(`/rest/v1/tarefas?id=eq.${tarefa.id}`, {
         method: "PATCH", body: JSON.stringify(body),
       });
