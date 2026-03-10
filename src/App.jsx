@@ -3136,21 +3136,33 @@ export default function App() {
   }
 
   // ── Wrapper setNotas que persiste ────────────────────────────────────────
-  function setNotasPersist(updater) {
-    setNotasRaw(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      // Detectar inserções/atualizações
-      next.forEach(n => {
-        const old = prev.find(o => o.id === n.id);
-        if (!old) { saveNota(n).then(created => {
-          if (created.id !== n.id) setNotasRaw(cur => cur.map(x => x.id === n.id ? created : x));
-        }); return; }
-        if (JSON.stringify(old) !== JSON.stringify(n)) saveNota(n);
-      });
-      // Detectar exclusões
-      prev.forEach(n => { if (!next.find(x => x.id === n.id)) deleteNota(n.id); });
-      return next;
-    });
+  async function setNotasPersist(updater) {
+    const prev = notasRaw;
+    const next = typeof updater === "function" ? updater(prev) : updater;
+    // Inserções
+    for (const n of next) {
+      const old = prev.find(o => o.id === n.id);
+      if (!old) {
+        try {
+          const created = await saveNota(n);
+          if (created && created.id !== n.id)
+            setNotasRaw(cur => [...cur.filter(x => x.id !== n.id), created]);
+          else
+            setNotasRaw(cur => [...cur.filter(x => x.id !== n.id), n]);
+        } catch(e) { console.error("Erro ao salvar nota:", e); }
+        return;
+      }
+      if (JSON.stringify(old) !== JSON.stringify(n)) {
+        try { await saveNota(n); } catch(e) { console.error("Erro ao atualizar nota:", e); }
+      }
+    }
+    // Exclusões
+    for (const n of prev) {
+      if (!next.find(x => x.id === n.id)) {
+        try { await deleteNota(n.id); } catch(e) { console.error("Erro ao deletar nota:", e); }
+      }
+    }
+    setNotasRaw(next);
   }
 
 
