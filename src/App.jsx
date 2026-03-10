@@ -22,6 +22,12 @@ async function sbFetch(path, opts = {}) {
     ...(opts.headers || {}),
   };
   const res = await fetch(`${SUPA_URL}${path}`, { ...opts, headers });
+  if (res.status === 401) {
+    // Sessão expirada — limpa e força logout
+    localStorage.removeItem("sb_session");
+    window.dispatchEvent(new Event("sb_session_expired"));
+    throw new Error("Sessão expirada");
+  }
   if (!res.ok) {
     const err = await res.text();
     throw new Error(err);
@@ -2948,9 +2954,18 @@ export default function App() {
       setFornecedoresRaw(forns.map(dbToFornecedor));
       setTarefasRaw(tars.map(dbToTarefa));
       setLastUpdated(new Date());
-    } catch(e) { console.error(e); }
+    } catch(e) {
+      if (e.message === "Sessão expirada") return; // já tratado pelo sbFetch
+      console.error(e);
+    }
     finally { if (showLoader) setLoading(false); }
   }
+
+  useEffect(() => {
+    function onExpired() { setSession(null); setNotasRaw([]); setFornecedoresRaw([]); setTarefasRaw([]); }
+    window.addEventListener("sb_session_expired", onExpired);
+    return () => window.removeEventListener("sb_session_expired", onExpired);
+  }, []);
 
   useEffect(() => {
     if (!session) { setLoading(false); return; }
