@@ -1520,7 +1520,20 @@ const NAV = [
   {id:"avisos",      label:"Avisos",                icon:"◉"},
 ];
 
-function Sidebar({ page, setPage, badge, onLogout, userEmail }) {
+function Sidebar({ page, setPage, badge, onLogout, userEmail, lastUpdated }) {
+  const [, forceUpdate] = React.useState(0);
+  React.useEffect(() => {
+    const t = setInterval(() => forceUpdate(n=>n+1), 30000);
+    return () => clearInterval(t);
+  }, []);
+  function tempoDesde(d) {
+    if (!d) return null;
+    const diff = Math.floor((new Date() - d) / 1000);
+    if (diff < 60)  return "agora mesmo";
+    if (diff < 120) return "há 1 min";
+    if (diff < 3600) return `há ${Math.floor(diff/60)} min`;
+    return `há ${Math.floor(diff/3600)}h`;
+  }
   return (
     <div style={{width:"220px",minWidth:"220px",background:T.surface,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",height:"100vh",position:"sticky",top:0,fontFamily:T.font}}>
       {/* Logo */}
@@ -1561,6 +1574,12 @@ function Sidebar({ page, setPage, badge, onLogout, userEmail }) {
 
       {/* User */}
       <div style={{padding:"12px 16px",borderTop:`1px solid ${T.border}`}}>
+        {lastUpdated && (
+          <div style={{display:"flex",alignItems:"center",gap:"5px",marginBottom:"10px",padding:"5px 8px",borderRadius:T.radiusSm,background:T.bg}}>
+            <span style={{width:"6px",height:"6px",borderRadius:"50%",background:"#17b26a",flexShrink:0,boxShadow:"0 0 0 2px #dcfce7"}}/>
+            <span style={{fontSize:"11px",color:T.textMuted}}>Atualizado {tempoDesde(lastUpdated)}</span>
+          </div>
+        )}
         <div style={{display:"flex",alignItems:"center",gap:"9px",marginBottom:"8px"}}>
           <div style={{width:"30px",height:"30px",borderRadius:"50%",background:T.primaryLight,display:"flex",alignItems:"center",justifyContent:"center",color:T.primary,fontWeight:700,fontSize:"12px",flexShrink:0,border:`1.5px solid ${T.border}`}}>
             {(userEmail||"?")[0].toUpperCase()}
@@ -1959,10 +1978,16 @@ const REPETIR_OPTS = [
 ];
 
 function TarefaModal({ onClose, onSave, editData }) {
-  const blank = { titulo:"", descricao:"", recorrencia:"diaria", data:today(), diaSemana:1, diaMes:1 };
+  const blank = { titulo:"", descricao:"", recorrencia:"diaria", data:today(), diaSemana:null, diaMes:null };
   const [form, setForm] = useState(editData || blank);
   const [errors, setErrors] = useState({});
   const set = (f,v) => { setForm(p=>({...p,[f]:v})); setErrors(p=>({...p,[f]:undefined})); };
+
+  function handleDataChange(v) {
+    const d = new Date(v + "T12:00:00");
+    setForm(p=>({...p, data:v, diaSemana:d.getDay(), diaMes:d.getDate()}));
+    setErrors(p=>({...p, data:undefined}));
+  }
 
   function handleSave() {
     const e={};
@@ -1970,7 +1995,8 @@ function TarefaModal({ onClose, onSave, editData }) {
     if (!form.data)          e.data="Selecione uma data";
     setErrors(e);
     if (Object.keys(e).length) return;
-    onSave({ ...form, id: editData?.id || Date.now(), concluidoEm: editData?.concluidoEm || null });
+    const d = new Date(form.data + "T12:00:00");
+    onSave({ ...form, diaSemana:d.getDay(), diaMes:d.getDate(), id:editData?.id||Date.now(), concluidoEm:editData?.concluidoEm||null });
   }
 
   return (
@@ -2021,7 +2047,7 @@ function TarefaModal({ onClose, onSave, editData }) {
           {/* Data */}
           <div>
             <label style={S.label}>Data:</label>
-            <MiniCalendar value={form.data} onChange={v=>set("data",v)}/>
+            <MiniCalendar value={form.data} onChange={handleDataChange}/>
             {errors.data&&<span style={S.error}>{errors.data}</span>}
           </div>
 
@@ -2906,6 +2932,7 @@ export default function App() {
   const [fornecedoresRaw,setFornecedoresRaw] = useState([]);
   const [novoFornModal,setNovoFornModal]   = useState(null);
   const [vencDetalhe,setVencDetalhe]       = useState(null);
+  const [lastUpdated, setLastUpdated]      = useState(null);
 
   // ── Carregar dados do Supabase ──────────────────────────────────────────
   async function loadData(showLoader=true) {
@@ -2920,6 +2947,7 @@ export default function App() {
       setNotasRaw(nfs.map(dbToNota));
       setFornecedoresRaw(forns.map(dbToFornecedor));
       setTarefasRaw(tars.map(dbToTarefa));
+      setLastUpdated(new Date());
     } catch(e) { console.error(e); }
     finally { if (showLoader) setLoading(false); }
   }
@@ -3094,7 +3122,7 @@ export default function App() {
   return (
     <div style={{display:"flex",height:"100vh",overflow:"hidden",background:T.bg,fontFamily:T.font}}>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
-      <Sidebar page={page} setPage={navTo} badge={pendentesHoje} onLogout={handleLogout} userEmail={session?.user?.email}/>
+      <Sidebar page={page} setPage={navTo} badge={pendentesHoje} onLogout={handleLogout} userEmail={session?.user?.email} lastUpdated={lastUpdated}/>
       <main style={{flex:1,overflowY:"auto"}}>
         {page==="home" && !vencDetalhe && (
           <HomePage notas={notasRaw} tarefas={tarefasRaw} setTarefas={setTarefas}
