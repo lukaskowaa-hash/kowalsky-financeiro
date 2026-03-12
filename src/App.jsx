@@ -2615,23 +2615,16 @@ function RelatorioFornecedor({ fornecedor, notas, onVoltar, lastAddedId }) {
 // ═══════════════════════════════════════════════════════════════════════════
 function FornecedorModal({ onClose, onSave, editData, initialNome="" }) {
   const [nome, setNome] = useState(editData ? editData.nome : initialNome);
-  const [erro, setErro] = useState("");
-  const [salvando, setSalvando] = useState(false);
 
-  async function handleSave() {
-    if(!nome.trim()) { setErro("Nome é obrigatório"); return; }
-    setSalvando(true);
-    try {
-      const forn = editData ? { ...editData, nome: nome.trim() } : { nome: nome.trim(), id: Date.now() };
-      await onSave(forn);
-    } catch(e) {
-      setErro("Erro ao salvar: " + e.message);
-      setSalvando(false);
-    }
+  function handleSave() {
+    const n = nome.trim();
+    if (!n) return;
+    // Passa objeto completo: com id (edição) ou sem id (novo)
+    onSave(editData ? { ...editData, nome: n } : { nome: n });
   }
 
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.5)",backdropFilter:"blur(4px)",zIndex:70,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}>
+    <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.5)",zIndex:70,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}>
       <div style={{background:T.surface,borderRadius:"16px",width:"100%",maxWidth:"440px",boxShadow:"0 24px 64px rgba(0,0,0,0.18)",fontFamily:T.font}}>
         <div style={{padding:"22px 26px 0",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
           <h2 style={{margin:0,fontSize:"18px",fontWeight:800,color:T.text}}>{editData?"Editar Fornecedor":"Novo Fornecedor"}</h2>
@@ -2639,22 +2632,18 @@ function FornecedorModal({ onClose, onSave, editData, initialNome="" }) {
         </div>
         <div style={{padding:"18px 26px 26px",display:"flex",flexDirection:"column",gap:"14px"}}>
           <div>
-            <label style={S.label}>Nome</label>
+            <label style={S.label}>Nome do Fornecedor</label>
             <input
               value={nome}
-              onChange={e=>{ setNome(e.target.value); setErro(""); }}
-              onKeyDown={e=>{ if(e.key==="Enter") handleSave(); }}
-              placeholder="Nome do fornecedor"
-              autoFocus
-              style={{...S.input,borderColor:erro?"#F24E29":"#e2e8f0"}}
+              onChange={e=>setNome(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&handleSave()}
+              placeholder="Digite o nome"
+              style={{...S.input}}
             />
-            {erro&&<span style={S.error}>{erro}</span>}
           </div>
           <div style={{display:"flex",gap:"10px",marginTop:"4px"}}>
             <button onClick={onClose} style={{flex:1,padding:"11px",borderRadius:"9px",border:"1.5px solid #e2e8f0",background:T.bg,color:"#475569",fontWeight:600,fontSize:"13.5px",cursor:"pointer"}}>Cancelar</button>
-            <button onClick={handleSave} disabled={salvando} style={{flex:1,padding:"11px",borderRadius:"9px",border:"none",background:salvando?"#94a3b8":"linear-gradient(135deg,#1A5173,#1A5173)",color:"#fff",fontWeight:700,fontSize:"13.5px",cursor:salvando?"not-allowed":"pointer",boxShadow:"0 4px 14px rgba(37,99,235,.3)"}}>
-              {salvando?"Salvando...":"Salvar"}
-            </button>
+            <button onClick={handleSave} style={{flex:1,padding:"11px",borderRadius:"9px",border:"none",background:"#1A5173",color:"#fff",fontWeight:700,fontSize:"13.5px",cursor:"pointer"}}>Salvar</button>
           </div>
         </div>
       </div>
@@ -2671,8 +2660,13 @@ function FornecedoresPage({ fornecedores, onSaveFornecedor, setFornecedores, not
   const [relatorio, setRelatorio] = useState(null); // fornecedor selecionado para relatório
 
   async function handleSave(f) {
-    await onSaveFornecedor(f);
-    setShowModal(false); setEditForn(null);
+    try {
+      await onSaveFornecedor(f);
+    } catch(e) {
+      alert("Erro ao salvar fornecedor: " + e.message);
+    }
+    setShowModal(false);
+    setEditForn(null);
   }
 
   // Se há um fornecedor selecionado, mostra o relatório
@@ -3138,21 +3132,20 @@ export default function App() {
   }
 
   async function saveFornecedor(forn) {
-    const isExisting = forn.id && typeof forn.id === "number" && forn.id < 1000000000;
-    if (isExisting) {
+    if (forn.id) {
+      // ATUALIZAR fornecedor existente
       await sbFetch(`/rest/v1/fornecedores?id=eq.${forn.id}`, {
         method: "PATCH", body: JSON.stringify({ nome: forn.nome, codigo: "" }),
       });
-      // Propaga nome atualizado para notas vinculadas
-      const prev = fornecedoresRaw.find(f => f.id === forn.id);
-      if (prev && prev.nome !== forn.nome) {
-        await sbFetch(`/rest/v1/notas_fiscais?fornecedor_id=eq.${forn.id}`, {
-          method: "PATCH", body: JSON.stringify({ fornecedor: forn.nome }),
-        });
-        setNotasRaw(cur => cur.map(n => n.fornecedorId === forn.id ? {...n, fornecedor: forn.nome} : n));
-      }
-      setFornecedoresRaw(prev => prev.map(f => f.id === forn.id ? forn : f));
+      // Propaga nome para notas vinculadas
+      await sbFetch(`/rest/v1/notas_fiscais?fornecedor_id=eq.${forn.id}`, {
+        method: "PATCH", body: JSON.stringify({ fornecedor: forn.nome }),
+      });
+      setFornecedoresRaw(prev => prev.map(f => f.id === forn.id ? { ...f, nome: forn.nome } : f));
+      setNotasRaw(prev => prev.map(n => n.fornecedorId === forn.id ? { ...n, fornecedor: forn.nome } : n));
+      return { ...forn };
     } else {
+      // CRIAR novo fornecedor
       const [created] = await sbFetch("/rest/v1/fornecedores", {
         method: "POST", body: JSON.stringify({ nome: forn.nome, codigo: "" }),
       });
@@ -3160,7 +3153,6 @@ export default function App() {
       setFornecedoresRaw(prev => [...prev, novo]);
       return novo;
     }
-    return forn;
   }
 
   async function saveTarefa(tarefa) {
@@ -3230,10 +3222,15 @@ export default function App() {
     if (onCriado) setNovoFornCallback(()=>onCriado);
   }
   async function handleSaveNovoForn(f) {
-    const novo = await saveFornecedor(f);
-    setNovoFornModal(null);
-    if (novoFornCallback) { novoFornCallback(novo); setNovoFornCallback(null); }
-    return novo;
+    try {
+      const novo = await saveFornecedor(f);
+      setNovoFornModal(null);
+      if (novoFornCallback) { novoFornCallback(novo); setNovoFornCallback(null); }
+      return novo;
+    } catch(e) {
+      alert("Erro ao salvar fornecedor: " + e.message);
+      setNovoFornModal(null);
+    }
   }
 
   // ── Wrapper setNotas que persiste ────────────────────────────────────────
