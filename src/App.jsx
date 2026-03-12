@@ -214,6 +214,17 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
   const [temObs, setTemObs] = useState(!!(editData?.observacao));
   const semParcelas = !!(form.parcelasPagas && form.parcelas===1 && form.parcelasPagas.includes(form.vencimentos[0]));
   const set = (f,v) => { setForm(p=>({...p,[f]:v})); setErrors(p=>({...p,[f]:undefined})); };
+  const EMPRESAS_LIST = ["Kowalsky","Evaldo","Superfrio"];
+
+  // Ctrl+Enter salva de qualquer campo
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "Escape") { onClose(); return; }
+      if ((e.ctrlKey||e.metaKey) && e.key === "Enter") { handleSave(); return; }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [form]);
 
   // Máscara de valor pt-BR
   function handleValorChange(e) {
@@ -312,9 +323,15 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
           </div>
           <div>
             <label style={S.label}>Empresa Destino <Red/></label>
-            <div style={{display:"flex",gap:"8px"}}>
+            <div role="group" style={{display:"flex",gap:"8px"}}
+              onKeyDown={e=>{
+                const idx = EMPRESAS_LIST.indexOf(form.empresa);
+                if(e.key==="ArrowRight"||e.key==="ArrowDown"){ e.preventDefault(); set("empresa",EMPRESAS_LIST[(idx+1)%EMPRESAS_LIST.length]); }
+                if(e.key==="ArrowLeft"||e.key==="ArrowUp"){ e.preventDefault(); set("empresa",EMPRESAS_LIST[(idx-1+EMPRESAS_LIST.length)%EMPRESAS_LIST.length]); }
+              }}>
               {EMPRESAS.map(e=>(
-                <button key={e} onClick={()=>set("empresa",e)} style={{flex:1,padding:"9px 10px",borderRadius:T.radiusSm,cursor:"pointer",fontWeight:600,fontSize:"13px",transition:"all .15s",border:form.empresa===e?"2px solid #1A5173":"2px solid #e2e8f0",background:form.empresa===e?"#C4DDF2":"#f8fafc",color:form.empresa===e?"#1A5173":"#475569"}}>{e}</button>
+                <button key={e} tabIndex={0} onClick={()=>set("empresa",e)}
+                  style={{flex:1,padding:"9px 10px",borderRadius:T.radiusSm,cursor:"pointer",fontWeight:600,fontSize:"13px",transition:"all .15s",border:form.empresa===e?"2px solid #1A5173":"2px solid #e2e8f0",background:form.empresa===e?"#C4DDF2":"#f8fafc",color:form.empresa===e?"#1A5173":"#475569"}}>{e}</button>
               ))}
             </div>
             {errors.empresa&&<span style={S.error}>{errors.empresa}</span>}
@@ -375,9 +392,16 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
           </div>
           <div>
             <label style={S.label}>Boletos físicos recebidos? <Red/></label>
-            <div style={{display:"flex",gap:"8px"}}>
+            <div role="group" style={{display:"flex",gap:"8px"}}
+              onKeyDown={e=>{
+                if(e.key==="ArrowLeft"||e.key==="ArrowRight"||e.key==="ArrowUp"||e.key==="ArrowDown"){
+                  e.preventDefault();
+                  set("boletosRecebidos", form.boletosRecebidos===true ? false : true);
+                }
+              }}>
               {[true,false].map(v=>(
-                <button key={String(v)} onClick={()=>set("boletosRecebidos",v)} style={{flex:1,padding:"9px",borderRadius:T.radiusSm,cursor:"pointer",fontWeight:600,fontSize:"13.5px",border:form.boletosRecebidos===v?"2px solid #1A5173":"2px solid #e2e8f0",background:form.boletosRecebidos===v?"#C4DDF2":"#f8fafc",color:form.boletosRecebidos===v?"#1A5173":"#475569"}}>{v?"Sim":"Não"}</button>
+                <button key={String(v)} tabIndex={0} onClick={()=>set("boletosRecebidos",v)}
+                  style={{flex:1,padding:"9px",borderRadius:T.radiusSm,cursor:"pointer",fontWeight:600,fontSize:"13.5px",border:form.boletosRecebidos===v?"2px solid #1A5173":"2px solid #e2e8f0",background:form.boletosRecebidos===v?"#C4DDF2":"#f8fafc",color:form.boletosRecebidos===v?"#1A5173":"#475569"}}>{v?"Sim":"Não"}</button>
               ))}
             </div>
             {errors.boletosRecebidos&&<span style={S.error}>{errors.boletosRecebidos}</span>}
@@ -386,7 +410,15 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
             <label style={S.label}>Quantidade de parcelas <Red/></label>
             <div style={{display:"flex",alignItems:"center",gap:"12px",flexWrap:"wrap"}}>
               <button onClick={()=>setParcelas(form.parcelas-1)} style={S.cbtn}>−</button>
-              <span style={{fontSize:"16px",fontWeight:700,color:T.text,minWidth:"20px",textAlign:"center"}}>{form.parcelas}</span>
+              <input
+                type="number" min="1" max="12" value={form.parcelas}
+                onChange={e=>setParcelas(parseInt(e.target.value)||1)}
+                onKeyDown={e=>{
+                  if(e.key==="ArrowUp"){e.preventDefault();setParcelas(form.parcelas+1);}
+                  if(e.key==="ArrowDown"){e.preventDefault();setParcelas(form.parcelas-1);}
+                }}
+                style={{width:"44px",textAlign:"center",fontSize:"16px",fontWeight:700,color:T.text,border:`1.5px solid ${T.border}`,borderRadius:T.radiusSm,padding:"4px 0",background:T.bg,fontFamily:T.font,outline:"none"}}
+              />
               <button onClick={()=>setParcelas(form.parcelas+1)} style={S.cbtn}>+</button>
               <button type="button" onClick={()=>{
                 const dataBase = form.emissao && form.emissao.match(/^\d{4}-\d{2}-\d{2}$/) ? form.emissao : today();
@@ -461,6 +493,11 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
             <button onClick={onClose} style={{flex:1,padding:"11px",borderRadius:"9px",border:"1.5px solid #e2e8f0",background:T.bg,color:"#475569",fontWeight:600,fontSize:"13.5px",cursor:"pointer"}}>Cancelar</button>
             <button onClick={handleSave} style={{flex:2,padding:"11px",borderRadius:"9px",border:"none",background:"linear-gradient(135deg,#1A5173,#1A5173)",color:"#fff",fontWeight:700,fontSize:"13.5px",cursor:"pointer",boxShadow:"0 4px 14px rgba(37,99,235,.3)"}}>{editData?"Salvar alterações":"Criar Nota Fiscal"}</button>
           </div>
+          <p style={{margin:"10px 0 0",textAlign:"center",fontSize:"11px",color:T.textMuted}}>
+            <kbd style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:"4px",padding:"1px 5px",fontSize:"10px",fontFamily:T.mono}}>Ctrl+Enter</kbd> salva &nbsp;·&nbsp;
+            <kbd style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:"4px",padding:"1px 5px",fontSize:"10px",fontFamily:T.mono}}>Esc</kbd> fecha &nbsp;·&nbsp;
+            <kbd style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:"4px",padding:"1px 5px",fontSize:"10px",fontFamily:T.mono}}>← →</kbd> seleciona opções
+          </p>
         </div>
       </div>
     </div>
