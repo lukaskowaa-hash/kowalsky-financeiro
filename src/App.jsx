@@ -2614,16 +2614,20 @@ function RelatorioFornecedor({ fornecedor, notas, onVoltar, lastAddedId }) {
 //  FORNECEDORES
 // ═══════════════════════════════════════════════════════════════════════════
 function FornecedorModal({ onClose, onSave, editData, initialNome="" }) {
-  const [form, setForm] = useState(editData || { nome: initialNome });
-  const [errors, setErrors] = useState({});
-  const set = (f,v) => { setForm(p=>({...p,[f]:v})); setErrors(p=>({...p,[f]:undefined})); };
+  const [nome, setNome] = useState(editData ? editData.nome : initialNome);
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
 
-  function handleSave() {
-    const e={};
-    if(!form.nome.trim()) e.nome="Obrigatório";
-    setErrors(e);
-    if(Object.keys(e).length) return;
-    onSave({...form, id: editData?.id||Date.now()});
+  async function handleSave() {
+    if(!nome.trim()) { setErro("Nome é obrigatório"); return; }
+    setSalvando(true);
+    try {
+      const forn = editData ? { ...editData, nome: nome.trim() } : { nome: nome.trim(), id: Date.now() };
+      await onSave(forn);
+    } catch(e) {
+      setErro("Erro ao salvar: " + e.message);
+      setSalvando(false);
+    }
   }
 
   return (
@@ -2636,12 +2640,21 @@ function FornecedorModal({ onClose, onSave, editData, initialNome="" }) {
         <div style={{padding:"18px 26px 26px",display:"flex",flexDirection:"column",gap:"14px"}}>
           <div>
             <label style={S.label}>Nome</label>
-            <input value={form.nome} onChange={e=>set("nome",e.target.value)} placeholder="Nome do fornecedor" autoFocus style={{...S.input,borderColor:errors.nome?"#F24E29":"#e2e8f0"}}/>
-            {errors.nome&&<span style={S.error}>{errors.nome}</span>}
+            <input
+              value={nome}
+              onChange={e=>{ setNome(e.target.value); setErro(""); }}
+              onKeyDown={e=>{ if(e.key==="Enter") handleSave(); }}
+              placeholder="Nome do fornecedor"
+              autoFocus
+              style={{...S.input,borderColor:erro?"#F24E29":"#e2e8f0"}}
+            />
+            {erro&&<span style={S.error}>{erro}</span>}
           </div>
           <div style={{display:"flex",gap:"10px",marginTop:"4px"}}>
             <button onClick={onClose} style={{flex:1,padding:"11px",borderRadius:"9px",border:"1.5px solid #e2e8f0",background:T.bg,color:"#475569",fontWeight:600,fontSize:"13.5px",cursor:"pointer"}}>Cancelar</button>
-            <button onClick={handleSave} style={{flex:1,padding:"11px",borderRadius:"9px",border:"none",background:"linear-gradient(135deg,#1A5173,#1A5173)",color:"#fff",fontWeight:700,fontSize:"13.5px",cursor:"pointer",boxShadow:"0 4px 14px rgba(37,99,235,.3)"}}>Salvar</button>
+            <button onClick={handleSave} disabled={salvando} style={{flex:1,padding:"11px",borderRadius:"9px",border:"none",background:salvando?"#94a3b8":"linear-gradient(135deg,#1A5173,#1A5173)",color:"#fff",fontWeight:700,fontSize:"13.5px",cursor:salvando?"not-allowed":"pointer",boxShadow:"0 4px 14px rgba(37,99,235,.3)"}}>
+              {salvando?"Salvando...":"Salvar"}
+            </button>
           </div>
         </div>
       </div>
@@ -3128,7 +3141,7 @@ export default function App() {
     const isExisting = forn.id && typeof forn.id === "number" && forn.id < 1000000000;
     if (isExisting) {
       await sbFetch(`/rest/v1/fornecedores?id=eq.${forn.id}`, {
-        method: "PATCH", body: JSON.stringify({ nome: forn.nome }),
+        method: "PATCH", body: JSON.stringify({ nome: forn.nome, codigo: "" }),
       });
       // Propaga nome atualizado para notas vinculadas
       const prev = fornecedoresRaw.find(f => f.id === forn.id);
@@ -3141,7 +3154,7 @@ export default function App() {
       setFornecedoresRaw(prev => prev.map(f => f.id === forn.id ? forn : f));
     } else {
       const [created] = await sbFetch("/rest/v1/fornecedores", {
-        method: "POST", body: JSON.stringify({ nome: forn.nome }),
+        method: "POST", body: JSON.stringify({ nome: forn.nome, codigo: "" }),
       });
       const novo = dbToFornecedor(created);
       setFornecedoresRaw(prev => [...prev, novo]);
