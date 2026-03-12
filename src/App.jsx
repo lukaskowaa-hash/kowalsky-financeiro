@@ -2649,7 +2649,7 @@ function FornecedorModal({ onClose, onSave, editData, initialNome="" }) {
   );
 }
 
-function FornecedoresPage({ fornecedores, setFornecedores, notas, lastAddedId }) {
+function FornecedoresPage({ fornecedores, onSaveFornecedor, setFornecedores, notas, lastAddedId }) {
   const [showModal, setShowModal] = useState(false);
   const [editForn, setEditForn]   = useState(null);
   const [deleteId, setDeleteId]   = useState(null);
@@ -2658,8 +2658,7 @@ function FornecedoresPage({ fornecedores, setFornecedores, notas, lastAddedId })
   const [relatorio, setRelatorio] = useState(null); // fornecedor selecionado para relatório
 
   async function handleSave(f) {
-    const isEdit = f.id && f.id < 1000000000;
-    await setFornecedores(fs => isEdit ? fs.map(x => x.id===f.id ? f : x) : [...fs, f]);
+    await onSaveFornecedor(f);
     setShowModal(false); setEditForn(null);
   }
 
@@ -3317,7 +3316,7 @@ export default function App() {
         )}
         {page==="notas"        && <NotasFiscaisPage notas={notasRaw} setNotas={setNotasPersist} showModal={showModal} setShowModal={setShowModal} fornecedores={fornecedoresRaw} onNovoFornecedor={handleNovoFornecedor} lastAddedId={lastAddedId} setLastAddedId={setLastAddedId}/>}
         {page==="boletos"      && <BoletosNaoRecebidosPage notas={notasRaw} setNotas={setNotasPersist}/>}
-        {page==="fornecedores" && <FornecedoresPage fornecedores={fornecedoresRaw} setFornecedores={setFornecedores} notas={notasRaw} lastAddedId={lastAddedId}/>}
+        {page==="fornecedores" && <FornecedoresPage fornecedores={fornecedoresRaw} onSaveFornecedor={saveFornecedor} setFornecedores={setFornecedores} notas={notasRaw} lastAddedId={lastAddedId}/>}
         {page==="avisos"       && <AvisosPage tarefas={tarefasRaw} setTarefas={setTarefas}/>}
       </main>
       {page==="home"&&!vencDetalhe&&(
