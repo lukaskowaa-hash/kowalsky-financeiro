@@ -2657,8 +2657,8 @@ function FornecedoresPage({ fornecedores, setFornecedores, notas, lastAddedId })
   const [search, setSearch]       = useState("");
   const [relatorio, setRelatorio] = useState(null); // fornecedor selecionado para relatório
 
-  function handleSave(f) {
-    setFornecedores(fs => f.id && fs.find(x=>x.id===f.id) ? fs.map(x=>x.id===f.id?f:x) : [...fs,f]);
+  async function handleSave(f) {
+    await setFornecedores(fs => f.id && fs.find(x=>x.id===f.id) ? fs.map(x=>x.id===f.id?f:x) : [...fs,f]);
     setShowModal(false); setEditForn(null);
   }
 
@@ -3167,26 +3167,26 @@ export default function App() {
   async function setFornecedores(updater) {
     const prev = fornecedoresRaw;
     const next = typeof updater === "function" ? updater(prev) : updater;
-    // Novos itens — salvar no banco
+    // INSERT — novo fornecedor
+    const inseridos = next.filter(f => !prev.find(o => o.id === f.id));
+    for (const f of inseridos) {
+      try {
+        const [created] = await sbFetch("/rest/v1/fornecedores", {
+          method: "POST", body: JSON.stringify({ nome: f.nome }),
+        });
+        const novo = dbToFornecedor(created);
+        setFornecedoresRaw(cur => [...cur, novo]);
+      } catch(e) { console.error("Erro ao salvar fornecedor:", e); }
+      return;
+    }
+    // PATCH — fornecedores alterados
     for (const f of next) {
       const old = prev.find(o => o.id === f.id);
-      if (!old) {
-        try {
-          const [created] = await sbFetch("/rest/v1/fornecedores", {
-            method: "POST", body: JSON.stringify({ nome: f.nome }),
-          });
-          const novo = dbToFornecedor(created);
-          setFornecedoresRaw(cur => [...cur.filter(x => x.id !== f.id), novo]);
-        } catch(e) { console.error("Erro ao salvar fornecedor:", e); }
-        return;
-      }
-      if (JSON.stringify(old) !== JSON.stringify(f)) {
-        // Atualização — também atualiza nome nas notas vinculadas
+      if (old && JSON.stringify(old) !== JSON.stringify(f)) {
         try {
           await sbFetch(`/rest/v1/fornecedores?id=eq.${f.id}`, {
             method: "PATCH", body: JSON.stringify({ nome: f.nome }),
           });
-          // Atualizar campo fornecedor em todas as notas vinculadas
           if (old.nome !== f.nome) {
             await sbFetch(`/rest/v1/notas_fiscais?fornecedor_id=eq.${f.id}`, {
               method: "PATCH", body: JSON.stringify({ fornecedor: f.nome }),
@@ -3196,7 +3196,7 @@ export default function App() {
         } catch(e) { console.error("Erro ao atualizar fornecedor:", e); }
       }
     }
-    // Deletados
+    // DELETE — fornecedores removidos
     for (const f of prev) {
       if (!next.find(n => n.id === f.id)) {
         try {
