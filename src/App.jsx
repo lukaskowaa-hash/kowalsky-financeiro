@@ -205,8 +205,12 @@ function useToast() {
 // ═══════════════════════════════════════════════════════════════════════════
 //  MODAL
 // ═══════════════════════════════════════════════════════════════════════════
-function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) {
+function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor, onFornecedorCriado }) {
   const blank = { fornecedor:"", fornecedorId:null, empresa:"", numero:"", emissao:today(), valor:"", boletosRecebidos:null, parcelas:1, vencimentos:[today()], status:"pendente", observacao:"" };
+  // Quando um fornecedor novo é criado externamente, auto-seleciona
+  useEffect(() => {
+    if (onFornecedorCriado && typeof onFornecedorCriado === "function") return;
+  }, []);
   const [form, setForm] = useState(editData || blank);
   const [errors, setErrors] = useState({});
   const [fornQuery, setFornQuery] = useState(editData?.fornecedor || "");
@@ -246,8 +250,8 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
   }, [fornQuery, fornecedores]);
 
   function selectFornecedor(f) {
-    setFornQuery(`${f.codigo} - ${f.nome}`);
-    set("fornecedor", `${f.codigo} - ${f.nome}`);
+    setFornQuery(f.nome);
+    set("fornecedor", f.nome);
     set("fornecedorId", f.id);
     setShowDropdown(false);
   }
@@ -312,10 +316,10 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
                   <button key={f.id} onMouseDown={()=>selectFornecedor(f)} style={{width:"100%",padding:"10px 14px",border:"none",background:"none",cursor:"pointer",textAlign:"left",fontSize:"13.5px",color:T.text,fontFamily:"inherit",borderBottom:"1px solid #f1f5f9"}}
                     onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
                     onMouseLeave={e=>e.currentTarget.style.background="none"}>
-                    {f.codigo} - {f.nome}
+                    {f.nome}
                   </button>
                 ))}
-                <button onMouseDown={()=>{ setShowDropdown(false); onNovoFornecedor(fornQuery); }} style={{width:"100%",padding:"10px 14px",border:"none",borderTop:"1px solid #e2e8f0",background:"none",cursor:"pointer",textAlign:"left",fontSize:"13.5px",color:"#1A5173",fontWeight:700,fontFamily:"inherit",display:"flex",alignItems:"center",gap:"6px"}}>
+                <button onMouseDown={()=>{ setShowDropdown(false); onNovoFornecedor(fornQuery, (novoForn)=>{ setFornQuery(novoForn.nome); set("fornecedor", novoForn.nome); set("fornecedorId", novoForn.id); }); }} style={{width:"100%",padding:"10px 14px",border:"none",borderTop:"1px solid #e2e8f0",background:"none",cursor:"pointer",textAlign:"left",fontSize:"13.5px",color:"#1A5173",fontWeight:700,fontFamily:"inherit",display:"flex",alignItems:"center",gap:"6px"}}>
                   <span style={{fontSize:"16px"}}>+</span> Criar novo fornecedor
                 </button>
               </div>
@@ -443,10 +447,13 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
                   <span style={{fontSize:"12.5px",color:T.textSub,minWidth:"60px"}}>Parcela {i+1}</span>
                   <input
                     type="text" inputMode="numeric" placeholder="DD/MM/AAAA"
+                    data-venc-idx={i}
                     value={form.vencimentos[i] && form.vencimentos[i].includes("-") ? form.vencimentos[i].split("-").reverse().join("/") : (form.vencimentos[i]||"")}
                     onChange={e=>{
                       let raw=e.target.value.replace(/\D/g,"");
                       if(raw.length>8) raw=raw.slice(0,8);
+                      const anoAtual=String(new Date().getFullYear());
+                      if(raw.length===4) raw=raw+anoAtual;
                       let disp="";
                       if(raw.length<=2) disp=raw;
                       else if(raw.length<=4) disp=raw.slice(0,2)+"/"+raw.slice(2);
@@ -459,6 +466,13 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor }) 
                       }
                       setForm(p=>({...p,vencimentos:arr}));
                       setErrors(p=>({...p,vencimentos:undefined}));
+                    }}
+                    onKeyDown={e=>{
+                      if(e.key==="Tab" && !e.shiftKey && i < form.parcelas-1) {
+                        e.preventDefault();
+                        const next = document.querySelector(`[data-venc-idx="${i+1}"]`);
+                        if(next) next.focus();
+                      }
                     }}
                     style={{...S.input,flex:1,borderColor:(form.vencimentos[i]&&form.emissao&&form.vencimentos[i]<form.emissao)?"#F24E29":"#e2e8f0"}}
                   />
@@ -1328,12 +1342,65 @@ function NotasFiscaisPage({ notas, setNotas, showModal, setShowModal, fornecedor
     toast(isEdit?"Nota fiscal atualizada":"Nota fiscal criada com sucesso");
   }
   function exportCSV() {
-    const hdr=["Fornecedor","Empresa","Nº NF","Emissão","Valor","Boletos","Parcelas","Vencimentos","Status","Obs"];
-    const rows=filtered.map(n=>[n.fornecedor,n.empresa,n.numero,fdate(n.emissao),fmt(n.valor),n.boletosRecebidos?"Sim":"Não",n.parcelas,n.vencimentos.map(fdate).join(" | "),statusNota(n).label,n.observacao]);
-    const csv=[hdr,...rows].map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}));
-    a.download="notas_fiscais.csv"; a.click();
+    if (!window.XLSX) { alert("Aguarde o carregamento do Excel..."); return; }
+    const maxParc = Math.max(...filtered.map(n => n.parcelas || 1));
+    const hdr = [
+      "FORNECEDOR","EMPRESA","NOTA FISCAL","DATA DE EMISSÃO",
+      "VALOR DA NOTA","BOLETO RECEBIDO","PARCELAS",
+      "VENCIMENTO","VALOR DA PARCELA",
+    ];
+    for (let i = 2; i <= maxParc; i++) hdr.push(`VENCIMENTO P${i}`);
+    const rows = filtered.map(n => {
+      const parcVal = n.parcelas > 1 ? (n.valor / n.parcelas) : "";
+      const row = [
+        fnome(n.fornecedor), n.empresa, n.numero, fdate(n.emissao),
+        n.valor, n.boletosRecebidos ? "BOLETO RECEBIDO" : "BOLETO NÃO RECEBIDO",
+        n.parcelas, fdate(n.vencimentos[0]) || "", parcVal,
+      ];
+      for (let i = 1; i < maxParc; i++) row.push(fdate(n.vencimentos[i]) || "");
+      return row;
+    });
+    const wsData = [hdr, ...rows];
+    const XLSX = window.XLSX;
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!cols"] = [{wch:30},{wch:14},{wch:14},{wch:16},{wch:16},{wch:22},{wch:10},{wch:16},{wch:18},...Array(Math.max(0,maxParc-1)).fill({wch:16})];
+    const headerStyle = {
+      font:{bold:true,color:{rgb:"FFFFFF"},name:"Arial",sz:11},
+      fill:{fgColor:{rgb:"1A5173"},patternType:"solid"},
+      alignment:{horizontal:"center",vertical:"center",wrapText:true},
+      border:{top:{style:"thin",color:{rgb:"CCCCCC"}},bottom:{style:"thin",color:{rgb:"CCCCCC"}},left:{style:"thin",color:{rgb:"CCCCCC"}},right:{style:"thin",color:{rgb:"CCCCCC"}}}
+    };
+    const evenStyle = {font:{name:"Arial",sz:10,color:{rgb:"111111"}},fill:{fgColor:{rgb:"FFFFFF"},patternType:"solid"},alignment:{vertical:"center"},border:{top:{style:"thin",color:{rgb:"E2E8F0"}},bottom:{style:"thin",color:{rgb:"E2E8F0"}},left:{style:"thin",color:{rgb:"E2E8F0"}},right:{style:"thin",color:{rgb:"E2E8F0"}}}};
+    const oddStyle = {...evenStyle,fill:{fgColor:{rgb:"EEF4F9"},patternType:"solid"}};
+    const range = XLSX.utils.decode_range(ws["!ref"]);
+    for (let R=range.s.r;R<=range.e.r;R++) {
+      for (let C=range.s.c;C<=range.e.c;C++) {
+        const addr=XLSX.utils.encode_cell({r:R,c:C});
+        if(!ws[addr]) ws[addr]={v:"",t:"s"};
+        if(R===0){ ws[addr].s=headerStyle; }
+        else {
+          const isEven=R%2===0;
+          if(C===4||C===8){ ws[addr].s={...(isEven?evenStyle:oddStyle),alignment:{horizontal:"right",vertical:"center"}}; if(ws[addr].v!==""){ws[addr].t="n";ws[addr].z="R$ #,##0.00";} }
+          else { ws[addr].s=isEven?evenStyle:oddStyle; }
+        }
+      }
+    }
+    ws["!freeze"]={xSplit:0,ySplit:1};
+    // Linha de totais
+    const totalRow=Array(hdr.length).fill("");
+    totalRow[0]="TOTAL"; totalRow[4]=filtered.reduce((s,n)=>s+(n.valor||0),0);
+    XLSX.utils.sheet_add_aoa(ws,[totalRow],{origin:-1});
+    const totalRowIdx=wsData.length;
+    hdr.forEach((_,C)=>{
+      const addr=XLSX.utils.encode_cell({r:totalRowIdx,c:C});
+      if(!ws[addr]) ws[addr]={v:"",t:"s"};
+      ws[addr].s={font:{bold:true,name:"Arial",sz:11,color:{rgb:"1A5173"}},fill:{fgColor:{rgb:"C4DDF2"},patternType:"solid"},alignment:C===4?{horizontal:"right"}:{},border:headerStyle.border};
+      if(C===4){ws[addr].t="n";ws[addr].z="R$ #,##0.00";}
+    });
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,"Notas Fiscais");
+    const hoje=new Date().toISOString().split("T")[0];
+    XLSX.writeFile(wb,`notas_fiscais_${hoje}.xlsx`);
   }
 
   const vencHoje = notas.filter(n=>statusNota(n).key!=="quitado"&&n.vencimentos.some(v=>v===today())).length;
@@ -3165,10 +3232,15 @@ export default function App() {
   function navTo(p) { setPage(p); setShowModal(false); setVencDetalhe(null); }
   const pendentesHoje = tarefasRaw.filter(t=>tarefaAtivaHoje(t)&&t.concluidoEm!==today()).length;
 
-  async function handleNovoFornecedor(nomeInicial) { setNovoFornModal(nomeInicial||""); }
+  const [novoFornCallback, setNovoFornCallback] = useState(null);
+  async function handleNovoFornecedor(nomeInicial, onCriado) {
+    setNovoFornModal(nomeInicial||"");
+    if (onCriado) setNovoFornCallback(()=>onCriado);
+  }
   async function handleSaveNovoForn(f) {
     const novo = await saveFornecedor(f);
     setNovoFornModal(null);
+    if (novoFornCallback) { novoFornCallback(novo); setNovoFornCallback(null); }
     return novo;
   }
 
