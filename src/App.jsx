@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 
 // ─── SHEETJS (Excel export) ───────────────────────────────────────────────────
 if (typeof window !== "undefined" && !window._xlsxLoaded) {
