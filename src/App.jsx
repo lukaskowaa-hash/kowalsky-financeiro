@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 
 // ─── SHEETJS (Excel export) ───────────────────────────────────────────────────
 if (typeof window !== "undefined" && !window._xlsxLoaded) {
@@ -3042,8 +3042,6 @@ export default function App() {
   const [showModal,setShowModal]           = useState(false);
   const [tarefasRaw,setTarefasRaw]         = useState([]);
   const [fornecedoresRaw,setFornecedoresRaw] = useState([]);
-  const fornecedoresRef = useRef([]);
-  useEffect(() => { fornecedoresRef.current = fornecedoresRaw; }, [fornecedoresRaw]);
   const [novoFornModal,setNovoFornModal]   = useState(null);
   const [vencDetalhe,setVencDetalhe]       = useState(null);
   const [lastUpdated, setLastUpdated]      = useState(null);
@@ -3127,11 +3125,19 @@ export default function App() {
   }
 
   async function saveFornecedor(forn) {
-    const isExisting = forn.id && typeof forn.id === 'number' && forn.id < 1000000000;
+    const isExisting = forn.id && typeof forn.id === "number" && forn.id < 1000000000;
     if (isExisting) {
       await sbFetch(`/rest/v1/fornecedores?id=eq.${forn.id}`, {
         method: "PATCH", body: JSON.stringify({ nome: forn.nome }),
       });
+      // Propaga nome atualizado para notas vinculadas
+      const prev = fornecedoresRaw.find(f => f.id === forn.id);
+      if (prev && prev.nome !== forn.nome) {
+        await sbFetch(`/rest/v1/notas_fiscais?fornecedor_id=eq.${forn.id}`, {
+          method: "PATCH", body: JSON.stringify({ fornecedor: forn.nome }),
+        });
+        setNotasRaw(cur => cur.map(n => n.fornecedorId === forn.id ? {...n, fornecedor: forn.nome} : n));
+      }
       setFornecedoresRaw(prev => prev.map(f => f.id === forn.id ? forn : f));
     } else {
       const [created] = await sbFetch("/rest/v1/fornecedores", {
@@ -3166,50 +3172,8 @@ export default function App() {
   }
 
   // ── Wrappers para compatibilidade com os componentes existentes ─────────
-  async function setFornecedores(updater) {
-    const prev = fornecedoresRef.current;
-    const next = typeof updater === "function" ? updater(prev) : updater;
-    const inseridos = next.filter(f => !prev.find(o => o.id === f.id));
-
-    if (inseridos.length > 0) {
-      // INSERT — salva no banco e adiciona com ID real
-      for (const f of inseridos) {
-        try {
-          const [created] = await sbFetch("/rest/v1/fornecedores", {
-            method: "POST", body: JSON.stringify({ nome: f.nome }),
-          });
-          const novo = dbToFornecedor(created);
-          setFornecedoresRaw(cur => [...cur, novo]);
-        } catch(e) { console.error("Erro INSERT fornecedor:", e); }
-      }
-      return;
-    }
-
-    // PATCH — atualiza nome e propaga para notas
-    for (const f of next) {
-      const old = prev.find(o => o.id === f.id);
-      if (old && old.nome !== f.nome) {
-        try {
-          await sbFetch(`/rest/v1/fornecedores?id=eq.${f.id}`, {
-            method: "PATCH", body: JSON.stringify({ nome: f.nome }),
-          });
-          await sbFetch(`/rest/v1/notas_fiscais?fornecedor_id=eq.${f.id}`, {
-            method: "PATCH", body: JSON.stringify({ fornecedor: f.nome }),
-          });
-          setNotasRaw(cur => cur.map(n => n.fornecedorId === f.id ? {...n, fornecedor: f.nome} : n));
-        } catch(e) { console.error("Erro PATCH fornecedor:", e); }
-      }
-    }
-
-    // DELETE
-    for (const f of prev) {
-      if (!next.find(n => n.id === f.id)) {
-        try {
-          await sbFetch(`/rest/v1/fornecedores?id=eq.${f.id}`, { method: "DELETE" });
-        } catch(e) { console.error("Erro DELETE fornecedor:", e); }
-      }
-    }
-    setFornecedoresRaw(next);
+  function setFornecedores(updater) {
+    setFornecedoresRaw(prev => typeof updater === "function" ? updater(prev) : updater);
   }
   async function setTarefas(updater) {
     const prev = tarefasRaw;
