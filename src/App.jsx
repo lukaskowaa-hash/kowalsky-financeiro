@@ -2658,7 +2658,7 @@ function FornecedoresPage({ fornecedores, setFornecedores, notas, lastAddedId })
   const [relatorio, setRelatorio] = useState(null); // fornecedor selecionado para relatório
 
   async function handleSave(f) {
-    await setFornecedores(fs => f.id && fs.find(x=>x.id===f.id) ? fs.map(x=>x.id===f.id?f:x) : [...fs,f]);
+    await saveFornecedor(f);
     setShowModal(false); setEditForn(null);
   }
 
