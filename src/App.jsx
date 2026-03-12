@@ -99,7 +99,7 @@ function notaToDB(n) {
 }
 
 function dbToFornecedor(r) {
-  return { id: r.id, codigo: r.codigo, nome: r.nome };
+  return { id: r.id, nome: r.nome };
 }
 
 function dbToTarefa(r) {
@@ -246,7 +246,7 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor, on
   const fornSuggestions = useMemo(() => {
     if (!fornQuery.trim()) return fornecedores;
     const q = fornQuery.toLowerCase();
-    return fornecedores.filter(f => f.nome.toLowerCase().includes(q) || f.codigo.toLowerCase().includes(q));
+    return fornecedores.filter(f => f.nome.toLowerCase().includes(q));
   }, [fornQuery, fornecedores]);
 
   function selectFornecedor(f) {
@@ -371,6 +371,7 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor, on
                   set("emissao",disp);
                 }
               }}
+              onFocus={e=>e.target.select()}
               style={{...S.input,borderColor:errors.emissao?"#F24E29":"#e2e8f0"}}
             />
             {errors.emissao&&<span style={S.error}>{errors.emissao}</span>}
@@ -467,11 +468,12 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor, on
                       setForm(p=>({...p,vencimentos:arr}));
                       setErrors(p=>({...p,vencimentos:undefined}));
                     }}
+                    onFocus={e=>{ e.target.select(); }}
                     onKeyDown={e=>{
                       if(e.key==="Tab" && !e.shiftKey && i < form.parcelas-1) {
                         e.preventDefault();
                         const next = document.querySelector(`[data-venc-idx="${i+1}"]`);
-                        if(next) next.focus();
+                        if(next) { next.focus(); next.select(); }
                       }
                     }}
                     style={{...S.input,flex:1,borderColor:(form.vencimentos[i]&&form.emissao&&form.vencimentos[i]<form.emissao)?"#F24E29":"#e2e8f0"}}
@@ -1259,7 +1261,7 @@ function ColFilter({ label, values, active, onApply, onClear }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-function NotasFiscaisPage({ notas, setNotas, showModal, setShowModal, fornecedores, onNovoFornecedor }) {
+function NotasFiscaisPage({ notas, setNotas, showModal, setShowModal, fornecedores, onNovoFornecedor, lastAddedId, setLastAddedId }) {
   const { toasts, toast } = useToast();
   const [editNota,setEditNota]     = useState(null);
   const [deleteId,setDeleteId]     = useState(null);
@@ -1340,6 +1342,7 @@ function NotasFiscaisPage({ notas, setNotas, showModal, setShowModal, fornecedor
     setNotas(ns=>isEdit?ns.map(n=>n.id===nota.id?nota:n):[...ns,nota]);
     setShowModal(false); setEditNota(null);
     toast(isEdit?"Nota fiscal atualizada":"Nota fiscal criada com sucesso");
+    if (!isEdit && setLastAddedId) { setLastAddedId(nota.id); setTimeout(()=>setLastAddedId(null), 3000); }
   }
   function exportCSV() {
     if (!window.XLSX) { alert("Aguarde o carregamento do Excel..."); return; }
@@ -1684,6 +1687,9 @@ function Sidebar({ page, setPage, badge, onLogout, userEmail, lastUpdated }) {
 
       {/* User */}
       <div style={{padding:"12px 16px",borderTop:`1px solid ${T.border}`}}>
+        <div style={{marginBottom:"8px",padding:"5px 8px",borderRadius:T.radiusSm,background:T.bg}}>
+          <p style={{margin:0,fontSize:"10px",color:T.textMuted,fontFamily:T.mono}}>App atualizado em: 12/03</p>
+        </div>
         {lastUpdated && (
           <div style={{display:"flex",alignItems:"center",gap:"5px",marginBottom:"10px",padding:"5px 8px",borderRadius:T.radiusSm,background:T.bg}}>
             <span style={{width:"6px",height:"6px",borderRadius:"50%",background:"#17b26a",flexShrink:0,boxShadow:"0 0 0 2px #dcfce7"}}/>
@@ -2296,7 +2302,7 @@ function AvisosPage({ tarefas, setTarefas }) {
 // ═══════════════════════════════════════════════════════════════════════════
 //  RELATÓRIO POR FORNECEDOR
 // ═══════════════════════════════════════════════════════════════════════════
-function RelatorioFornecedor({ fornecedor, notas, onVoltar }) {
+function RelatorioFornecedor({ fornecedor, notas, onVoltar, lastAddedId }) {
   const [aba, setAba]           = useState("notas");
   const [expandedId, setExpandedId] = useState(null);
   const [fDataDe, setFDataDe]   = useState("");
@@ -2357,7 +2363,7 @@ function RelatorioFornecedor({ fornecedor, notas, onVoltar }) {
           <div style={{width:"36px",height:"36px",borderRadius:"9px",background:"#C4DDF2",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px"}}>🏢</div>
           <div>
             <h1 style={{margin:0,fontSize:"18px",fontWeight:800,color:T.text}}>{fornecedor.nome}</h1>
-            <p style={{margin:0,fontSize:"12px",color:T.textMuted}}>Código: {fornecedor.codigo} · {notasForn.length} nota(s) no total</p>
+            <p style={{margin:0,fontSize:"12px",color:T.textMuted}}>{notasForn.length} nota(s) no total</p>
           </div>
         </div>
 
@@ -2447,9 +2453,12 @@ function RelatorioFornecedor({ fornecedor, notas, onVoltar }) {
                     return (
                       <React.Fragment key={n.id}>
                         <tr onClick={()=>setExpandedId(exp?null:n.id)}
-                          style={{borderBottom:exp?"none":i<notasOrdenadas.length-1?"1px solid #f1f5f9":"none",cursor:"pointer",background:exp?"#f0f6ff":""}}
-                          onMouseEnter={e=>{if(!exp)e.currentTarget.style.background="#fafbff"}}
-                          onMouseLeave={e=>{if(!exp)e.currentTarget.style.background=""}}>
+                          style={{borderBottom:exp?"none":i<notasOrdenadas.length-1?"1px solid #f1f5f9":"none",cursor:"pointer",
+                            background: lastAddedId===n.id ? "#dbeafe" : exp ? "#f0f6ff" : "",
+                            transition:"background 1.5s ease",
+                          }}
+                          onMouseEnter={e=>{if(!exp&&lastAddedId!==n.id)e.currentTarget.style.background="#fafbff"}}
+                          onMouseLeave={e=>{if(!exp&&lastAddedId!==n.id)e.currentTarget.style.background=""}}>
                           <td style={{padding:"12px 14px",textAlign:"center"}}>
                             <span style={{fontSize:"11px",color:T.textMuted,display:"inline-block",transform:exp?"rotate(90deg)":"rotate(0deg)",transition:"transform .2s"}}>▶</span>
                           </td>
@@ -2605,14 +2614,13 @@ function RelatorioFornecedor({ fornecedor, notas, onVoltar }) {
 //  FORNECEDORES
 // ═══════════════════════════════════════════════════════════════════════════
 function FornecedorModal({ onClose, onSave, editData, initialNome="" }) {
-  const [form, setForm] = useState(editData || { codigo:"", nome: initialNome });
+  const [form, setForm] = useState(editData || { nome: initialNome });
   const [errors, setErrors] = useState({});
   const set = (f,v) => { setForm(p=>({...p,[f]:v})); setErrors(p=>({...p,[f]:undefined})); };
 
   function handleSave() {
     const e={};
-    if(!form.codigo.trim()) e.codigo="Obrigatório";
-    if(!form.nome.trim())   e.nome="Obrigatório";
+    if(!form.nome.trim()) e.nome="Obrigatório";
     setErrors(e);
     if(Object.keys(e).length) return;
     onSave({...form, id: editData?.id||Date.now()});
@@ -2627,13 +2635,8 @@ function FornecedorModal({ onClose, onSave, editData, initialNome="" }) {
         </div>
         <div style={{padding:"18px 26px 26px",display:"flex",flexDirection:"column",gap:"14px"}}>
           <div>
-            <label style={S.label}>Código</label>
-            <input value={form.codigo} onChange={e=>set("codigo",e.target.value)} placeholder="Ex: FORN001" autoFocus style={{...S.input,borderColor:errors.codigo?"#F24E29":"#e2e8f0"}}/>
-            {errors.codigo&&<span style={S.error}>{errors.codigo}</span>}
-          </div>
-          <div>
             <label style={S.label}>Nome</label>
-            <input value={form.nome} onChange={e=>set("nome",e.target.value)} placeholder="Nome do fornecedor" style={{...S.input,borderColor:errors.nome?"#F24E29":"#e2e8f0"}}/>
+            <input value={form.nome} onChange={e=>set("nome",e.target.value)} placeholder="Nome do fornecedor" autoFocus style={{...S.input,borderColor:errors.nome?"#F24E29":"#e2e8f0"}}/>
             {errors.nome&&<span style={S.error}>{errors.nome}</span>}
           </div>
           <div style={{display:"flex",gap:"10px",marginTop:"4px"}}>
@@ -2646,7 +2649,7 @@ function FornecedorModal({ onClose, onSave, editData, initialNome="" }) {
   );
 }
 
-function FornecedoresPage({ fornecedores, setFornecedores, notas }) {
+function FornecedoresPage({ fornecedores, setFornecedores, notas, lastAddedId }) {
   const [showModal, setShowModal] = useState(false);
   const [editForn, setEditForn]   = useState(null);
   const [deleteId, setDeleteId]   = useState(null);
@@ -2661,13 +2664,12 @@ function FornecedoresPage({ fornecedores, setFornecedores, notas }) {
 
   // Se há um fornecedor selecionado, mostra o relatório
   if (relatorio) {
-    return <RelatorioFornecedor fornecedor={relatorio} notas={notas} onVoltar={()=>setRelatorio(null)}/>;
+    return <RelatorioFornecedor fornecedor={relatorio} notas={notas} onVoltar={()=>setRelatorio(null)} lastAddedId={lastAddedId}/>;
   }
 
-  const filtered = fornecedores.filter(f => {
-    const ms = !search || f.nome.toLowerCase().includes(search.toLowerCase()) || f.codigo.toLowerCase().includes(search.toLowerCase());
-    return ms;
-  });
+  const filtered = fornecedores
+    .filter(f => !search || f.nome.toLowerCase().includes(search.toLowerCase()))
+    .sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
   // Estatísticas por fornecedor
   function statsFor(forn) {
@@ -2720,7 +2722,7 @@ function FornecedoresPage({ fornecedores, setFornecedores, notas }) {
                     onMouseEnter={e=>e.currentTarget.style.background="#fafbff"}
                     onMouseLeave={e=>e.currentTarget.style.background=""}>
                     <td style={{padding:"13px 18px"}}>
-                      <span style={{fontFamily:"monospace",fontWeight:700,fontSize:"13px",background:"#f1f5f9",color:"#334155",padding:"3px 8px",borderRadius:"6px"}}>{f.codigo}</span>
+
                     </td>
                     <td style={{padding:"13px 18px",fontWeight:600,color:T.text}}>{f.nome}</td>
                     <td style={{padding:"13px 18px",color:"#475569",textAlign:"center"}}>
@@ -3043,6 +3045,7 @@ export default function App() {
   const [novoFornModal,setNovoFornModal]   = useState(null);
   const [vencDetalhe,setVencDetalhe]       = useState(null);
   const [lastUpdated, setLastUpdated]      = useState(null);
+  const [lastAddedId, setLastAddedId]      = useState(null);
 
   // ── Carregar dados do Supabase ──────────────────────────────────────────
   async function loadData(showLoader=true) {
@@ -3075,7 +3078,7 @@ export default function App() {
     if (!session) { setLoading(false); return; }
     loadData(true);
     // Auto-refresh a cada 60 segundos
-    const interval = setInterval(() => loadData(false), 60000);
+    const interval = setInterval(() => loadData(false), 180000);
     return () => clearInterval(interval);
   }, [session]);
 
@@ -3125,12 +3128,12 @@ export default function App() {
     const isExisting = forn.id && typeof forn.id === 'number' && forn.id < 1000000000;
     if (isExisting) {
       await sbFetch(`/rest/v1/fornecedores?id=eq.${forn.id}`, {
-        method: "PATCH", body: JSON.stringify({ codigo: forn.codigo, nome: forn.nome }),
+        method: "PATCH", body: JSON.stringify({ nome: forn.nome }),
       });
       setFornecedoresRaw(prev => prev.map(f => f.id === forn.id ? forn : f));
     } else {
       const [created] = await sbFetch("/rest/v1/fornecedores", {
-        method: "POST", body: JSON.stringify({ codigo: forn.codigo, nome: forn.nome }),
+        method: "POST", body: JSON.stringify({ nome: forn.nome }),
       });
       const novo = dbToFornecedor(created);
       setFornecedoresRaw(prev => [...prev, novo]);
@@ -3170,7 +3173,7 @@ export default function App() {
       if (!old) {
         try {
           const [created] = await sbFetch("/rest/v1/fornecedores", {
-            method: "POST", body: JSON.stringify({ codigo: f.codigo, nome: f.nome }),
+            method: "POST", body: JSON.stringify({ nome: f.nome }),
           });
           const novo = dbToFornecedor(created);
           setFornecedoresRaw(cur => [...cur.filter(x => x.id !== f.id), novo]);
@@ -3178,11 +3181,18 @@ export default function App() {
         return;
       }
       if (JSON.stringify(old) !== JSON.stringify(f)) {
-        // Atualização
+        // Atualização — também atualiza nome nas notas vinculadas
         try {
           await sbFetch(`/rest/v1/fornecedores?id=eq.${f.id}`, {
-            method: "PATCH", body: JSON.stringify({ codigo: f.codigo, nome: f.nome }),
+            method: "PATCH", body: JSON.stringify({ nome: f.nome }),
           });
+          // Atualizar campo fornecedor em todas as notas vinculadas
+          if (old.nome !== f.nome) {
+            await sbFetch(`/rest/v1/notas_fiscais?fornecedor_id=eq.${f.id}`, {
+              method: "PATCH", body: JSON.stringify({ fornecedor: f.nome }),
+            });
+            setNotasRaw(cur => cur.map(n => n.fornecedorId === f.id ? {...n, fornecedor: f.nome} : n));
+          }
         } catch(e) { console.error("Erro ao atualizar fornecedor:", e); }
       }
     }
@@ -3299,9 +3309,9 @@ export default function App() {
         {page==="home" && vencDetalhe && (
           <VencimentosDetalhe tipo={vencDetalhe.tipo} titulo={vencDetalhe.titulo} notas={notasRaw} onVoltar={()=>setVencDetalhe(null)}/>
         )}
-        {page==="notas"        && <NotasFiscaisPage notas={notasRaw} setNotas={setNotasPersist} showModal={showModal} setShowModal={setShowModal} fornecedores={fornecedoresRaw} onNovoFornecedor={handleNovoFornecedor}/>}
+        {page==="notas"        && <NotasFiscaisPage notas={notasRaw} setNotas={setNotasPersist} showModal={showModal} setShowModal={setShowModal} fornecedores={fornecedoresRaw} onNovoFornecedor={handleNovoFornecedor} lastAddedId={lastAddedId} setLastAddedId={setLastAddedId}/>}
         {page==="boletos"      && <BoletosNaoRecebidosPage notas={notasRaw} setNotas={setNotasPersist}/>}
-        {page==="fornecedores" && <FornecedoresPage fornecedores={fornecedoresRaw} setFornecedores={setFornecedores} notas={notasRaw}/>}
+        {page==="fornecedores" && <FornecedoresPage fornecedores={fornecedoresRaw} setFornecedores={setFornecedores} notas={notasRaw} lastAddedId={lastAddedId}/>}
         {page==="avisos"       && <AvisosPage tarefas={tarefasRaw} setTarefas={setTarefas}/>}
       </main>
       {page==="home"&&!vencDetalhe&&(
