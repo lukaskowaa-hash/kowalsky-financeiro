@@ -3043,6 +3043,8 @@ export default function App() {
   const [showModal,setShowModal]           = useState(false);
   const [tarefasRaw,setTarefasRaw]         = useState([]);
   const [fornecedoresRaw,setFornecedoresRaw] = useState([]);
+  const fornecedoresRef = useRef([]);
+  useEffect(() => { fornecedoresRef.current = fornecedoresRaw; }, [fornecedoresRaw]);
   const [novoFornModal,setNovoFornModal]   = useState(null);
   const [vencDetalhe,setVencDetalhe]       = useState(null);
   const [lastUpdated, setLastUpdated]      = useState(null);
@@ -3166,11 +3168,12 @@ export default function App() {
 
   // ── Wrappers para compatibilidade com os componentes existentes ─────────
   async function setFornecedores(updater) {
-    const prev = fornecedoresRaw;
+    const prev = fornecedoresRef.current;
     const next = typeof updater === "function" ? updater(prev) : updater;
-    // INSERT — novo fornecedor
     const inseridos = next.filter(f => !prev.find(o => o.id === f.id));
+
     if (inseridos.length > 0) {
+      // INSERT — salva no banco e adiciona com ID real
       for (const f of inseridos) {
         try {
           const [created] = await sbFetch("/rest/v1/fornecedores", {
@@ -3178,33 +3181,33 @@ export default function App() {
           });
           const novo = dbToFornecedor(created);
           setFornecedoresRaw(cur => [...cur, novo]);
-        } catch(e) { console.error("Erro ao salvar fornecedor:", e); }
+        } catch(e) { console.error("Erro INSERT fornecedor:", e); }
       }
-      return; // insert concluído, sai
+      return;
     }
-    // PATCH — fornecedores alterados
+
+    // PATCH — atualiza nome e propaga para notas
     for (const f of next) {
       const old = prev.find(o => o.id === f.id);
-      if (old && JSON.stringify(old) !== JSON.stringify(f)) {
+      if (old && old.nome !== f.nome) {
         try {
           await sbFetch(`/rest/v1/fornecedores?id=eq.${f.id}`, {
             method: "PATCH", body: JSON.stringify({ nome: f.nome }),
           });
-          if (old.nome !== f.nome) {
-            await sbFetch(`/rest/v1/notas_fiscais?fornecedor_id=eq.${f.id}`, {
-              method: "PATCH", body: JSON.stringify({ fornecedor: f.nome }),
-            });
-            setNotasRaw(cur => cur.map(n => n.fornecedorId === f.id ? {...n, fornecedor: f.nome} : n));
-          }
-        } catch(e) { console.error("Erro ao atualizar fornecedor:", e); }
+          await sbFetch(`/rest/v1/notas_fiscais?fornecedor_id=eq.${f.id}`, {
+            method: "PATCH", body: JSON.stringify({ fornecedor: f.nome }),
+          });
+          setNotasRaw(cur => cur.map(n => n.fornecedorId === f.id ? {...n, fornecedor: f.nome} : n));
+        } catch(e) { console.error("Erro PATCH fornecedor:", e); }
       }
     }
-    // DELETE — fornecedores removidos
+
+    // DELETE
     for (const f of prev) {
       if (!next.find(n => n.id === f.id)) {
         try {
           await sbFetch(`/rest/v1/fornecedores?id=eq.${f.id}`, { method: "DELETE" });
-        } catch(e) { console.error("Erro ao deletar fornecedor:", e); }
+        } catch(e) { console.error("Erro DELETE fornecedor:", e); }
       }
     }
     setFornecedoresRaw(next);
