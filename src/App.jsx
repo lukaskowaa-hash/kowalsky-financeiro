@@ -1049,11 +1049,14 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
       {/* Parcelas sem boleto */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"12px",marginBottom:"20px"}}>
         {[
-          {label:"Hoje",   count:notas.reduce((s,n)=>!n.boletosRecebidos&&statusNota(n).key!=="quitado"?s+n.vencimentos.filter(v=>v===td&&parcelaStatusEfetivo(n,v)!=="pago").length:s,0), accent:"#F24E29", accentBg:"#fdecea"},
-          {label:"Amanhã", count:notas.reduce((s,n)=>!n.boletosRecebidos&&statusNota(n).key!=="quitado"?s+n.vencimentos.filter(v=>v===tm&&parcelaStatusEfetivo(n,v)!=="pago").length:s,0), accent:"#d97706", accentBg:"#fef3c7"},
-          {label:"Semana", count:notas.reduce((s,n)=>!n.boletosRecebidos&&statusNota(n).key!=="quitado"?s+n.vencimentos.filter(v=>v>=td&&v<=ew&&parcelaStatusEfetivo(n,v)!=="pago").length:s,0), accent:T.primary, accentBg:T.primaryLight},
+          {label:"Hoje",   tipo:"sem-boleto-hoje",   count:notas.reduce((s,n)=>!n.boletosRecebidos&&statusNota(n).key!=="quitado"?s+n.vencimentos.filter(v=>v===td&&parcelaStatusEfetivo(n,v)!=="pago").length:s,0), accent:"#F24E29", accentBg:"#fdecea"},
+          {label:"Amanhã", tipo:"sem-boleto-amanha", count:notas.reduce((s,n)=>!n.boletosRecebidos&&statusNota(n).key!=="quitado"?s+n.vencimentos.filter(v=>v===tm&&parcelaStatusEfetivo(n,v)!=="pago").length:s,0), accent:"#d97706", accentBg:"#fef3c7"},
+          {label:"Semana", tipo:"sem-boleto-semana", count:notas.reduce((s,n)=>!n.boletosRecebidos&&statusNota(n).key!=="quitado"?s+n.vencimentos.filter(v=>v>=td&&v<=ew&&parcelaStatusEfetivo(n,v)!=="pago").length:s,0), accent:T.primary, accentBg:T.primaryLight},
         ].map(c=>(
-          <div key={c.label} style={{background:T.surface,borderRadius:T.radius,padding:"14px 20px",boxShadow:T.shadow,border:`1.5px solid ${c.count>0?c.accent+"55":T.border}`}}>
+          <div key={c.label} onClick={()=>c.count>0&&onVerDetalhes(c.tipo,`Sem Boleto — ${c.label}`)}
+            style={{background:T.surface,borderRadius:T.radius,padding:"14px 20px",boxShadow:T.shadow,border:`1.5px solid ${c.count>0?c.accent+"55":T.border}`,cursor:c.count>0?"pointer":"default",transition:"box-shadow .15s,transform .15s"}}
+            onMouseEnter={e=>{if(c.count>0){e.currentTarget.style.boxShadow=T.shadowMd;e.currentTarget.style.transform="translateY(-1px)";}}}
+            onMouseLeave={e=>{e.currentTarget.style.boxShadow=T.shadow;e.currentTarget.style.transform="";}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"6px"}}>
               <span style={{fontSize:"12px",fontWeight:500,color:T.textMuted}}>Sem boleto — {c.label}</span>
               {c.count>0&&<div style={{width:"7px",height:"7px",borderRadius:"50%",background:c.accent}}/>}
@@ -1061,6 +1064,7 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
             <p style={{margin:0,fontSize:"18px",fontWeight:700,color:c.count>0?c.accent:T.textMuted,fontFamily:T.mono}}>
               {c.count>0?`${c.count} parcela(s)`:"Nenhuma"}
             </p>
+            {c.count>0&&<p style={{margin:"4px 0 0",fontSize:"11.5px",color:T.textMuted}}>Ver detalhes →</p>}
           </div>
         ))}
       </div>
@@ -2834,13 +2838,16 @@ function VencimentosDetalhe({ titulo, notas, tipo, onVoltar }) {
     const list = [];
     notas.forEach(n => {
       n.vencimentos.forEach((venc, i) => {
+        const semBoleto = tipo.startsWith("sem-boleto-");
+        const tipoBase  = semBoleto ? tipo.replace("sem-boleto-","") : tipo;
         const incluir =
-          tipo==="hoje"   ? venc===td :
-          tipo==="amanha" ? venc===tm :
-          tipo==="semana" ? venc>=td && venc<=ew : false;
+          tipoBase==="hoje"   ? venc===td :
+          tipoBase==="amanha" ? venc===tm :
+          tipoBase==="semana" ? venc>=td && venc<=ew : false;
         if (!incluir) return;
         if (parcelaStatusEfetivo(n, venc)==="pago") return;
         if (statusNota(n).key==="quitado") return;
+        if (semBoleto && n.boletosRecebidos) return;
         list.push({
           notaId: n.id, numero: n.numero, fornecedor: n.fornecedor,
           empresa: n.empresa, venc,
@@ -2854,7 +2861,7 @@ function VencimentosDetalhe({ titulo, notas, tipo, onVoltar }) {
   }, [notas, tipo]);
 
   const totalGeral = parcelas.reduce((s,p)=>s+p.valor,0);
-  const accent = tipo==="hoje"?"#F24E29":tipo==="amanha"?"#f59e0b":"#1A5173";
+  const accent = (tipo==="hoje"||tipo==="sem-boleto-hoje")?"#F24E29":(tipo==="amanha"||tipo==="sem-boleto-amanha")?"#f59e0b":"#1A5173";
 
   return (
     <div style={{padding:"28px 36px",fontFamily:T.font}}>
