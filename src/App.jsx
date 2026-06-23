@@ -1268,6 +1268,7 @@ function NotasFiscaisPage({ notas, setNotas, showModal, setShowModal, fornecedor
   const [expandedId,setExpandedId] = useState(null);
   const [search,setSearch]         = useState("");
   const [page, setPage]            = useState(1);
+  const [modalKey, setModalKey]    = useState(0);
   const PER_PAGE = 50;
   const toggleExpand = (id) => setExpandedId(prev => prev===id ? null : id);
 
@@ -1340,7 +1341,7 @@ function NotasFiscaisPage({ notas, setNotas, showModal, setShowModal, fornecedor
   function handleSave(nota) {
     const isEdit = nota.id && notas.find(n=>n.id===nota.id);
     setNotas(ns=>isEdit?ns.map(n=>n.id===nota.id?nota:n):[...ns,nota]);
-    setShowModal(false); setEditNota(null);
+    if (isEdit) { setShowModal(false); setEditNota(null); } else { setModalKey(k=>k+1); }
     toast(isEdit?"Nota fiscal atualizada":"Nota fiscal criada com sucesso");
     if (!isEdit && setLastAddedId) { setLastAddedId(nota.id); setTimeout(()=>setLastAddedId(null), 3000); }
   }
@@ -1603,7 +1604,7 @@ function NotasFiscaisPage({ notas, setNotas, showModal, setShowModal, fornecedor
         </div>
       )}
 
-      {(showModal||editNota)&&<NFModal onClose={()=>{setShowModal(false);setEditNota(null);}} onSave={handleSave} editData={editNota} fornecedores={fornecedores} onNovoFornecedor={onNovoFornecedor}/>}
+      {(showModal||editNota)&&<NFModal key={editNota?editNota.id:modalKey} onClose={()=>{setShowModal(false);setEditNota(null);}} onSave={handleSave} editData={editNota} fornecedores={fornecedores} onNovoFornecedor={onNovoFornecedor}/>}
       {deleteId&&(
         <div style={{position:"fixed",inset:0,background:"rgba(16,24,40,.4)",backdropFilter:"blur(4px)",zIndex:60,display:"flex",alignItems:"center",justifyContent:"center"}}>
           <div style={{background:T.surface,borderRadius:T.radius,padding:"28px",maxWidth:"320px",width:"90%",textAlign:"center",boxShadow:T.shadowMd,border:`1px solid ${T.border}`,fontFamily:T.font}}>
