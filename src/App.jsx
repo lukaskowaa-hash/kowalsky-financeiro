@@ -130,23 +130,29 @@ function tarefaToDB(t) {
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const T = {
-  font:  "'Inter', sans-serif",
-  mono:  "'IBM Plex Mono', monospace",
-  bg:    "#eef4f9",
-  surface: "#ffffff",
-  border: "#d6e6f2",
-  borderStrong: "#5B89A6",
-  text:   "#011526",
-  textSub:"#5B89A6",
-  textMuted:"#6c757d",
-  primary:"#1A5173",
-  primaryLight:"#C4DDF2",
-  shadow: "0 1px 3px rgba(1,21,38,.06), 0 1px 2px rgba(1,21,38,.04)",
-  shadowMd:"0 4px 16px rgba(1,21,38,.10)",
-  radius: "10px",
-  radiusSm:"7px",
-  danger: "#F24E29",
-  dangerLight:"#fdecea",
+  font:        "'Libre Franklin', sans-serif",
+  mono:        "'IBM Plex Mono', monospace",
+  bg:          "#FFFFFF",
+  bgAlt:       "#FAF9F6",
+  surface:     "#FFFFFF",
+  sidebar:     "#101114",
+  border:      "#ECE9E3",
+  borderStrong:"#1B1C20",
+  text:        "#101114",
+  textSub:     "#6B6F76",
+  textMuted:   "#9A9EA5",
+  primary:     "#DA3A2D",
+  primaryLight:"#FBEAE8",
+  shadow:      "none",
+  shadowMd:    "none",
+  radius:      "6px",
+  radiusSm:    "6px",
+  danger:      "#DA3A2D",
+  dangerLight: "#FBEAE8",
+  accent:      "#DA3A2D",
+  accentSoft:  "#FBEAE8",
+  positive:    "#3F8F5F",
+  warning:     "#B8852A",
 };
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -1018,61 +1024,62 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
 
   return (
     <div style={{padding:"36px 40px",fontFamily:T.font,maxWidth:"1200px"}}>
-      <div style={{marginBottom:"28px"}}>
-        <h1 style={{margin:0,fontSize:"22px",fontWeight:700,color:T.text,letterSpacing:"-.02em"}}>Dashboard</h1>
-        <p style={{margin:"4px 0 0",fontSize:"13.5px",color:T.textMuted}}>Controle de notas fiscais e boletos — Kowalsky</p>
+      <div style={{marginBottom:"32px"}}>
+        <div style={{fontSize:"10px",fontFamily:T.mono,color:T.primary,letterSpacing:".12em",marginBottom:"10px"}}>
+          {new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"}).toUpperCase()}
+        </div>
+        <h1 style={{margin:"0 0 16px",fontSize:"34px",fontWeight:700,color:T.text,letterSpacing:"-.02em",lineHeight:1.1}}>Visão geral</h1>
+        <div style={{borderBottom:`2px solid ${T.borderStrong}`}}/>
       </div>
 
       {/* Cards de vencimento — valor das parcelas do período */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"12px",marginBottom:"20px"}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",borderTop:`2px solid ${T.borderStrong}`,marginBottom:"0"}}>
         {[
-          {label:"Hoje",   notas:vencHoje,   total:totalHoje,   parcelas:parcelasHoje,   accent:"#F24E29", accentBg:"#fdecea", tipo:"hoje"},
-          {label:"Amanhã", notas:vencAmanha, total:totalAmanha, parcelas:parcelasAmanha, accent:T.primary, accentBg:T.primaryLight, tipo:"amanha"},
-          {label:"Semana", notas:vencSemana, total:totalSemana, parcelas:parcelasSemana, accent:T.primary, accentBg:T.primaryLight, tipo:"semana"},
-        ].map(c=>(
+          {label:"Hoje",   notas:vencHoje,   total:totalHoje,   parcelas:parcelasHoje,   accent:T.danger, tipo:"hoje"},
+          {label:"Amanhã", notas:vencAmanha, total:totalAmanha, parcelas:parcelasAmanha, accent:T.text,   tipo:"amanha"},
+          {label:"Semana", notas:vencSemana, total:totalSemana, parcelas:parcelasSemana, accent:T.text,   tipo:"semana"},
+        ].map((c,i)=>(
           <div key={c.label} onClick={()=>c.notas.length>0&&onVerDetalhes(c.tipo,c.label,c.notas)}
-            style={{background:T.surface,borderRadius:T.radius,padding:"18px 20px",boxShadow:T.shadow,border:`1px solid ${T.border}`,cursor:c.notas.length>0?"pointer":"default",transition:"box-shadow .15s,transform .15s"}}
-            onMouseEnter={e=>{if(c.notas.length>0){e.currentTarget.style.boxShadow=T.shadowMd;e.currentTarget.style.transform="translateY(-1px)";}}}
-            onMouseLeave={e=>{e.currentTarget.style.boxShadow=T.shadow;e.currentTarget.style.transform="";}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"12px"}}>
-              <span style={{fontSize:"12px",fontWeight:500,color:T.textMuted}}>Vencimentos — {c.label}</span>
-              {c.parcelas>0&&<span style={{fontSize:"11px",fontWeight:600,padding:"2px 7px",borderRadius:"20px",background:c.accentBg,color:c.accent}}>{c.parcelas} parcela(s)</span>}
+            style={{padding:"20px 24px",borderRight:i<2?`1px solid ${T.border}`:"none",borderBottom:`1px solid ${T.border}`,cursor:c.notas.length>0?"pointer":"default",transition:"opacity .12s"}}
+            onMouseEnter={e=>{ if(c.notas.length>0) e.currentTarget.style.opacity=".7"; }}
+            onMouseLeave={e=>{ e.currentTarget.style.opacity="1"; }}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"10px"}}>
+              <span style={{fontSize:"10px",fontFamily:T.mono,color:T.textMuted,letterSpacing:".1em"}}>VENCIMENTOS · {c.label.toUpperCase()}</span>
+              {c.parcelas>0&&<span style={{fontSize:"11px",color:c.accent,fontWeight:500}}>{c.parcelas} parcela(s)</span>}
             </div>
-            <p style={{margin:"0 0 4px",fontSize:"22px",fontWeight:700,color:T.text,letterSpacing:"-.02em",fontFamily:T.mono}}>{fmt(c.total)}</p>
-            {c.notas.length>0
-              ? <p style={{margin:0,fontSize:"11.5px",color:T.textMuted}}>Ver detalhes →</p>
-              : <p style={{margin:0,fontSize:"11.5px",color:T.textMuted}}>Nenhum vencimento ✓</p>}
+            <p style={{margin:"0 0 6px",fontSize:"26px",fontWeight:700,color:c.notas.length>0?c.accent:T.textMuted,letterSpacing:"-.03em",fontFamily:T.mono,lineHeight:1}}>{fmt(c.total)}</p>
+            <p style={{margin:0,fontSize:"11px",color:T.textMuted}}>{c.notas.length>0?"Ver detalhes →":"Nenhum vencimento"}</p>
           </div>
         ))}
       </div>
 
       {/* Parcelas sem boleto */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"12px",marginBottom:"20px"}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",marginBottom:"32px"}}>
         {[
-          {label:"Hoje",   tipo:"sem-boleto-hoje",   count:notas.reduce((s,n)=>!n.boletosRecebidos&&statusNota(n).key!=="quitado"?s+n.vencimentos.filter(v=>v===td&&parcelaStatusEfetivo(n,v)!=="pago").length:s,0), accent:"#F24E29", accentBg:"#fdecea"},
-          {label:"Amanhã", tipo:"sem-boleto-amanha", count:notas.reduce((s,n)=>!n.boletosRecebidos&&statusNota(n).key!=="quitado"?s+n.vencimentos.filter(v=>v===tm&&parcelaStatusEfetivo(n,v)!=="pago").length:s,0), accent:"#d97706", accentBg:"#fef3c7"},
-          {label:"Semana", tipo:"sem-boleto-semana", count:notas.reduce((s,n)=>!n.boletosRecebidos&&statusNota(n).key!=="quitado"?s+n.vencimentos.filter(v=>v>=td&&v<=ew&&parcelaStatusEfetivo(n,v)!=="pago").length:s,0), accent:T.primary, accentBg:T.primaryLight},
-        ].map(c=>(
+          {label:"Hoje",   tipo:"sem-boleto-hoje",   count:notas.reduce((s,n)=>!n.boletosRecebidos&&statusNota(n).key!=="quitado"?s+n.vencimentos.filter(v=>v===td&&parcelaStatusEfetivo(n,v)!=="pago").length:s,0), accent:T.danger},
+          {label:"Amanhã", tipo:"sem-boleto-amanha", count:notas.reduce((s,n)=>!n.boletosRecebidos&&statusNota(n).key!=="quitado"?s+n.vencimentos.filter(v=>v===tm&&parcelaStatusEfetivo(n,v)!=="pago").length:s,0), accent:T.warning},
+          {label:"Semana", tipo:"sem-boleto-semana", count:notas.reduce((s,n)=>!n.boletosRecebidos&&statusNota(n).key!=="quitado"?s+n.vencimentos.filter(v=>v>=td&&v<=ew&&parcelaStatusEfetivo(n,v)!=="pago").length:s,0), accent:T.text},
+        ].map((c,i)=>(
           <div key={c.label} onClick={()=>c.count>0&&onVerDetalhes(c.tipo,`Sem Boleto — ${c.label}`)}
-            style={{background:T.surface,borderRadius:T.radius,padding:"14px 20px",boxShadow:T.shadow,border:`1.5px solid ${c.count>0?c.accent+"55":T.border}`,cursor:c.count>0?"pointer":"default",transition:"box-shadow .15s,transform .15s"}}
-            onMouseEnter={e=>{if(c.count>0){e.currentTarget.style.boxShadow=T.shadowMd;e.currentTarget.style.transform="translateY(-1px)";}}}
-            onMouseLeave={e=>{e.currentTarget.style.boxShadow=T.shadow;e.currentTarget.style.transform="";}}>
+            style={{padding:"14px 24px",borderRight:i<2?`1px solid ${T.border}`:"none",borderBottom:`1px solid ${T.border}`,cursor:c.count>0?"pointer":"default",transition:"opacity .12s"}}
+            onMouseEnter={e=>{ if(c.count>0) e.currentTarget.style.opacity=".7"; }}
+            onMouseLeave={e=>{ e.currentTarget.style.opacity="1"; }}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"6px"}}>
-              <span style={{fontSize:"12px",fontWeight:500,color:T.textMuted}}>Sem boleto — {c.label}</span>
-              {c.count>0&&<div style={{width:"7px",height:"7px",borderRadius:"50%",background:c.accent}}/>}
+              <span style={{fontSize:"10px",fontFamily:T.mono,color:T.textMuted,letterSpacing:".1em"}}>SEM BOLETO · {c.label.toUpperCase()}</span>
+              {c.count>0&&<div style={{width:"6px",height:"6px",borderRadius:"50%",background:c.accent}}/>}
             </div>
-            <p style={{margin:0,fontSize:"18px",fontWeight:700,color:c.count>0?c.accent:T.textMuted,fontFamily:T.mono}}>
+            <p style={{margin:0,fontSize:"18px",fontWeight:700,color:c.count>0?c.accent:T.textMuted,fontFamily:T.mono,letterSpacing:"-.02em"}}>
               {c.count>0?`${c.count} parcela(s)`:"Nenhuma"}
             </p>
-            {c.count>0&&<p style={{margin:"4px 0 0",fontSize:"11.5px",color:T.textMuted}}>Ver detalhes →</p>}
+            {c.count>0&&<p style={{margin:"4px 0 0",fontSize:"11px",color:T.textMuted}}>Ver detalhes →</p>}
           </div>
         ))}
       </div>
 
       {/* Linha inferior: Empresa (mês atual) + Gráfico diário */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 2fr",gap:"12px",marginBottom:"16px"}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 2fr",gap:"0",marginBottom:"32px",borderTop:`1px solid ${T.border}`}}>
         {/* Por empresa — período selecionável */}
-        <div style={{background:T.surface,borderRadius:T.radius,padding:"20px 22px",boxShadow:T.shadow,border:`1px solid ${T.border}`}}>
+        <div style={{padding:"20px 24px 20px 0",borderRight:`1px solid ${T.border}`}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"16px"}}>
             <div>
               <p style={{margin:0,fontSize:"13px",fontWeight:600,color:T.text}}>Vencimentos por Empresa</p>
@@ -1097,8 +1104,8 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
                   </div>
                   <span style={{fontSize:"13px",fontWeight:600,color:T.text,fontFamily:T.mono}}>{fmt(e.total)}</span>
                 </div>
-                <div style={{height:"5px",borderRadius:"99px",background:T.bg,overflow:"hidden"}}>
-                  <div style={{height:"100%",width:`${(e.total/maxEmp)*100}%`,borderRadius:"99px",background:e.color,transition:"width .6s"}}/>
+                <div style={{height:"3px",background:T.border,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${(e.total/maxEmp)*100}%`,background:e.color,transition:"width .6s"}}/>
                 </div>
                 <div style={{fontSize:"11px",color:T.textMuted,marginTop:"3px"}}>
                   {e.count > 0 ? `${e.count} parcela(s)` : "Nenhuma parcela"}
@@ -1117,7 +1124,7 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
         const tarefasHoje=tarefas.filter(t=>tarefaAtivaHoje(t));
         const pendentes=tarefasHoje.filter(t=>t.concluidoEm!==td);
         return (
-          <div style={{background:T.surface,borderRadius:T.radius,padding:"20px 22px",boxShadow:T.shadow,border:`1px solid ${pendentes.length>0?"#fbbf24":T.border}`}}>
+          <div style={{padding:"20px 0",borderTop:`1px solid ${T.border}`}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"14px"}}>
               <div>
                 <p style={{margin:0,fontSize:"13px",fontWeight:600,color:T.text}}>Avisos do Dia</p>
@@ -1125,7 +1132,7 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
                   {tarefasHoje.length===0?"Nenhum aviso para hoje":`${tarefasHoje.filter(t=>t.concluidoEm===td).length}/${tarefasHoje.length} concluídos`}
                 </p>
               </div>
-              {tarefasHoje.length>0&&<div style={{height:"4px",width:"100px",borderRadius:"99px",background:T.bg,overflow:"hidden"}}>
+              {tarefasHoje.length>0&&<div style={{height:"3px",width:"100px",background:T.border,overflow:"hidden"}}>
                 <div style={{height:"100%",borderRadius:"99px",background:"#17b26a",width:`${(tarefasHoje.filter(t=>t.concluidoEm===td).length/tarefasHoje.length)*100}%`,transition:"width .4s"}}/>
               </div>}
             </div>
@@ -1137,7 +1144,7 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
                   const concluida=t.concluidoEm===td;
                   const rec=RECORRENCIA_CFG[t.recorrencia];
                   return (
-                    <div key={t.id} style={{display:"flex",alignItems:"center",gap:"10px",padding:"9px 12px",borderRadius:T.radiusSm,background:concluida?"#f6fef9":T.bg,border:`1px solid ${concluida?"#abefc6":T.border}`,transition:"all .15s"}}>
+                    <div key={t.id} style={{display:"flex",alignItems:"center",gap:"10px",padding:"9px 0",borderBottom:`1px solid ${T.border}`,transition:"all .15s"}}>
                       <button onClick={()=>setTarefas(ts=>ts.map(x=>x.id===t.id?{...x,concluidoEm:concluida?null:today()}:x))}
                         style={{width:"18px",height:"18px",borderRadius:"50%",border:`1.5px solid ${concluida?"#17b26a":T.borderStrong}`,background:concluida?"#17b26a":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .15s"}}>
                         {concluida&&<span style={{color:"#fff",fontSize:"10px",fontWeight:700}}>✓</span>}
@@ -3313,7 +3320,7 @@ export default function App() {
         {page==="avisos"       && <AvisosPage tarefas={tarefasRaw} setTarefas={setTarefas}/>}
       </main>
       {page==="home"&&!vencDetalhe&&(
-        <button onClick={()=>{setPage("notas");setTimeout(()=>setShowModal(true),50);}} style={{position:"fixed",bottom:"28px",right:"28px",width:"52px",height:"52px",borderRadius:"50%",background:"linear-gradient(135deg,#1A5173,#1A5173)",border:"none",color:"#fff",fontSize:"26px",cursor:"pointer",boxShadow:"0 6px 20px rgba(37,99,235,.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:40}}>+</button>
+        <button onClick={()=>{setPage("notas");setTimeout(()=>setShowModal(true),50);}} style={{position:"fixed",bottom:"28px",right:"28px",padding:"10px 20px",background:T.sidebar,border:"none",color:"#fff",fontSize:"13px",fontWeight:600,cursor:"pointer",fontFamily:T.font,letterSpacing:".02em",zIndex:40}}>+ Nova Nota</button>
       )}
       {novoFornModal!==null && (
         <FornecedorModal onClose={()=>setNovoFornModal(null)} onSave={handleSaveNovoForn} initialNome={novoFornModal}/>
