@@ -1046,6 +1046,25 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
         ))}
       </div>
 
+      {/* Parcelas sem boleto */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"12px",marginBottom:"20px"}}>
+        {[
+          {label:"Hoje",   count:notas.reduce((s,n)=>!n.boletosRecebidos&&statusNota(n).key!=="quitado"?s+n.vencimentos.filter(v=>v===td&&parcelaStatusEfetivo(n,v)!=="pago").length:s,0), accent:"#F24E29", accentBg:"#fdecea"},
+          {label:"Amanhã", count:notas.reduce((s,n)=>!n.boletosRecebidos&&statusNota(n).key!=="quitado"?s+n.vencimentos.filter(v=>v===tm&&parcelaStatusEfetivo(n,v)!=="pago").length:s,0), accent:"#d97706", accentBg:"#fef3c7"},
+          {label:"Semana", count:notas.reduce((s,n)=>!n.boletosRecebidos&&statusNota(n).key!=="quitado"?s+n.vencimentos.filter(v=>v>=td&&v<=ew&&parcelaStatusEfetivo(n,v)!=="pago").length:s,0), accent:T.primary, accentBg:T.primaryLight},
+        ].map(c=>(
+          <div key={c.label} style={{background:T.surface,borderRadius:T.radius,padding:"14px 20px",boxShadow:T.shadow,border:`1.5px solid ${c.count>0?c.accent+"55":T.border}`}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"6px"}}>
+              <span style={{fontSize:"12px",fontWeight:500,color:T.textMuted}}>Sem boleto — {c.label}</span>
+              {c.count>0&&<div style={{width:"7px",height:"7px",borderRadius:"50%",background:c.accent}}/>}
+            </div>
+            <p style={{margin:0,fontSize:"18px",fontWeight:700,color:c.count>0?c.accent:T.textMuted,fontFamily:T.mono}}>
+              {c.count>0?`${c.count} parcela(s)`:"Nenhuma"}
+            </p>
+          </div>
+        ))}
+      </div>
+
       {/* Linha inferior: Empresa (mês atual) + Gráfico diário */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 2fr",gap:"12px",marginBottom:"16px"}}>
         {/* Por empresa — período selecionável */}
@@ -1089,39 +1108,43 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
         <BarChartDiario notas={notas}/>
       </div>
 
-      {/* Tarefas do dia */}
-      {(() => {
-        const tarefasHoje = tarefas.filter(t=>tarefaAtivaHoje(t));
-        if (tarefasHoje.length===0) return null;
+      {/* Avisos do Dia */}
+      {(()=>{
+        const tarefasHoje=tarefas.filter(t=>tarefaAtivaHoje(t));
+        const pendentes=tarefasHoje.filter(t=>t.concluidoEm!==td);
         return (
-          <div style={{background:T.surface,borderRadius:T.radius,padding:"20px 22px",boxShadow:T.shadow,border:`1px solid ${T.border}`}}>
+          <div style={{background:T.surface,borderRadius:T.radius,padding:"20px 22px",boxShadow:T.shadow,border:`1px solid ${pendentes.length>0?"#fbbf24":T.border}`}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"14px"}}>
               <div>
-                <p style={{margin:0,fontSize:"13px",fontWeight:600,color:T.text}}>Tarefas de Hoje</p>
+                <p style={{margin:0,fontSize:"13px",fontWeight:600,color:T.text}}>Avisos do Dia</p>
                 <p style={{margin:"2px 0 0",fontSize:"11.5px",color:T.textMuted}}>
-                  {tarefasHoje.filter(t=>t.concluidoEm===td).length}/{tarefasHoje.length} concluídas
+                  {tarefasHoje.length===0?"Nenhum aviso para hoje":`${tarefasHoje.filter(t=>t.concluidoEm===td).length}/${tarefasHoje.length} concluídos`}
                 </p>
               </div>
-              <div style={{height:"4px",width:"100px",borderRadius:"99px",background:T.bg,overflow:"hidden"}}>
+              {tarefasHoje.length>0&&<div style={{height:"4px",width:"100px",borderRadius:"99px",background:T.bg,overflow:"hidden"}}>
                 <div style={{height:"100%",borderRadius:"99px",background:"#17b26a",width:`${(tarefasHoje.filter(t=>t.concluidoEm===td).length/tarefasHoje.length)*100}%`,transition:"width .4s"}}/>
+              </div>}
+            </div>
+            {tarefasHoje.length===0?(
+              <p style={{margin:0,fontSize:"13px",color:T.textMuted,textAlign:"center",padding:"8px 0"}}>Sem avisos programados para hoje</p>
+            ):(
+              <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
+                {tarefasHoje.map(t=>{
+                  const concluida=t.concluidoEm===td;
+                  const rec=RECORRENCIA_CFG[t.recorrencia];
+                  return (
+                    <div key={t.id} style={{display:"flex",alignItems:"center",gap:"10px",padding:"9px 12px",borderRadius:T.radiusSm,background:concluida?"#f6fef9":T.bg,border:`1px solid ${concluida?"#abefc6":T.border}`,transition:"all .15s"}}>
+                      <button onClick={()=>setTarefas(ts=>ts.map(x=>x.id===t.id?{...x,concluidoEm:concluida?null:today()}:x))}
+                        style={{width:"18px",height:"18px",borderRadius:"50%",border:`1.5px solid ${concluida?"#17b26a":T.borderStrong}`,background:concluida?"#17b26a":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .15s"}}>
+                        {concluida&&<span style={{color:"#fff",fontSize:"10px",fontWeight:700}}>✓</span>}
+                      </button>
+                      <span style={{flex:1,fontSize:"13px",fontWeight:500,color:concluida?T.textMuted:T.text,textDecoration:concluida?"line-through":"none"}}>{t.titulo}</span>
+                      <span style={{fontSize:"11px",fontWeight:500,padding:"2px 7px",borderRadius:"20px",background:rec.bg,color:rec.color}}>{rec.label}</span>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-            <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
-              {tarefasHoje.map(t=>{
-                const concluida=t.concluidoEm===td;
-                const rec=RECORRENCIA_CFG[t.recorrencia];
-                return (
-                  <div key={t.id} style={{display:"flex",alignItems:"center",gap:"10px",padding:"9px 12px",borderRadius:T.radiusSm,background:concluida?"#f6fef9":T.bg,border:`1px solid ${concluida?"#abefc6":T.border}`,transition:"all .15s"}}>
-                    <button onClick={()=>setTarefas(ts=>ts.map(x=>x.id===t.id?{...x,concluidoEm:concluida?null:today()}:x))}
-                      style={{width:"18px",height:"18px",borderRadius:"50%",border:`1.5px solid ${concluida?"#17b26a":T.borderStrong}`,background:concluida?"#17b26a":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .15s"}}>
-                      {concluida&&<span style={{color:"#fff",fontSize:"10px",fontWeight:700}}>✓</span>}
-                    </button>
-                    <span style={{flex:1,fontSize:"13px",fontWeight:500,color:concluida?T.textMuted:T.text,textDecoration:concluida?"line-through":"none"}}>{t.titulo}</span>
-                    <span style={{fontSize:"11px",fontWeight:500,padding:"2px 7px",borderRadius:"20px",background:rec.bg,color:rec.color}}>{rec.label}</span>
-                  </div>
-                );
-              })}
-            </div>
+            )}
           </div>
         );
       })()}
