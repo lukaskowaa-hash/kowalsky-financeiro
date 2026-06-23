@@ -1000,7 +1000,7 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
 
   const periodoLabel = { hoje:"Hoje", semana:"Esta semana", mes: mesAtualNome }[periodoEmpresa];
 
-  const porEmpresa = EMPRESAS.map((emp,i)=>{
+  const porEmpresa = useMemo(() => EMPRESAS.map((emp,i)=>{
     let total = 0, count = 0;
     notas.filter(n=>n.empresa===emp).forEach(n=>{
       n.vencimentos.forEach(v=>{
@@ -1011,7 +1011,7 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
       });
     });
     return { name:emp, color:COLORS[i], total, count };
-  });
+  }), [notas, periodoEmpresa]);
   const maxEmp = Math.max(...porEmpresa.map(e=>e.total),1);
 
   // (fluxo 3 meses removido — substituído por gráfico diário)
@@ -1099,16 +1099,16 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
               <div>
                 <p style={{margin:0,fontSize:"13px",fontWeight:600,color:T.text}}>Tarefas de Hoje</p>
                 <p style={{margin:"2px 0 0",fontSize:"11.5px",color:T.textMuted}}>
-                  {tarefasHoje.filter(t=>t.concluidoEm===today()).length}/{tarefasHoje.length} concluídas
+                  {tarefasHoje.filter(t=>t.concluidoEm===td).length}/{tarefasHoje.length} concluídas
                 </p>
               </div>
               <div style={{height:"4px",width:"100px",borderRadius:"99px",background:T.bg,overflow:"hidden"}}>
-                <div style={{height:"100%",borderRadius:"99px",background:"#17b26a",width:`${(tarefasHoje.filter(t=>t.concluidoEm===today()).length/tarefasHoje.length)*100}%`,transition:"width .4s"}}/>
+                <div style={{height:"100%",borderRadius:"99px",background:"#17b26a",width:`${(tarefasHoje.filter(t=>t.concluidoEm===td).length/tarefasHoje.length)*100}%`,transition:"width .4s"}}/>
               </div>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
               {tarefasHoje.map(t=>{
-                const concluida=t.concluidoEm===today();
+                const concluida=t.concluidoEm===td;
                 const rec=RECORRENCIA_CFG[t.recorrencia];
                 return (
                   <div key={t.id} style={{display:"flex",alignItems:"center",gap:"10px",padding:"9px 12px",borderRadius:T.radiusSm,background:concluida?"#f6fef9":T.bg,border:`1px solid ${concluida?"#abefc6":T.border}`,transition:"all .15s"}}>
@@ -1407,7 +1407,7 @@ function NotasFiscaisPage({ notas, setNotas, showModal, setShowModal, fornecedor
     XLSX.writeFile(wb,`notas_fiscais_${hoje}.xlsx`);
   }
 
-  const vencHoje = notas.filter(n=>statusNota(n).key!=="quitado"&&n.vencimentos.some(v=>v===today())).length;
+  const vencHoje = useMemo(() => notas.filter(n=>statusNota(n).key!=="quitado"&&n.vencimentos.some(v=>v===today())).length, [notas]);
 
   const COLS = [
     {label:"Número NF",   sortKey:"numero",     active:fNumero,  onApply:setFNumero,  onClear:()=>setFNumero([]),  vals:uNumero },
