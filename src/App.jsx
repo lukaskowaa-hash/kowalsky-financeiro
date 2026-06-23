@@ -294,7 +294,7 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor, on
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.5)",backdropFilter:"blur(4px)",zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}>
-      <div style={{background:T.surface,borderRadius:"16px",width:"100%",maxWidth:"510px",maxHeight:"92vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)",fontFamily:T.font}}>
+      <div style={{background:T.surface,borderRadius:T.radius,width:"100%",maxWidth:"510px",maxHeight:"92vh",overflowY:"auto",boxShadow:"0 4px 32px rgba(0,0,0,0.12)",border:`1px solid ${T.border}`,fontFamily:T.font}}>
         <div style={{padding:"22px 26px 0",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
           <div>
             <h2 style={{margin:0,fontSize:"18px",fontWeight:800,color:T.text}}>{editData?"Editar Nota Fiscal":"Nova Nota Fiscal"}</h2>
@@ -311,7 +311,7 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor, on
               onFocus={()=>setShowDropdown(true)}
               onBlur={()=>setTimeout(()=>setShowDropdown(false),200)}
               placeholder="Digite o código ou nome do fornecedor"
-              style={{...S.input,borderColor:errors.fornecedor?"#F24E29":"#e2e8f0"}}
+              style={{...S.input,borderColor:errors.fornecedor?T.danger:T.border}}
             />
             {errors.fornecedor&&<span style={S.error}>{errors.fornecedor}</span>}
             {showDropdown&&(
@@ -319,13 +319,13 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor, on
                 {fornSuggestions.length===0&&fornQuery.trim()===("")?(
                   <div style={{padding:"12px 14px",fontSize:"13px",color:T.textMuted}}>Nenhum fornecedor cadastrado</div>
                 ):fornSuggestions.map(f=>(
-                  <button key={f.id} onMouseDown={()=>selectFornecedor(f)} style={{width:"100%",padding:"10px 14px",border:"none",background:"none",cursor:"pointer",textAlign:"left",fontSize:"13.5px",color:T.text,fontFamily:"inherit",borderBottom:"1px solid #f1f5f9"}}
-                    onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
+                  <button key={f.id} onMouseDown={()=>selectFornecedor(f)} style={{width:"100%",padding:"10px 14px",border:"none",background:"none",cursor:"pointer",textAlign:"left",fontSize:"13.5px",color:T.text,fontFamily:"inherit",borderBottom:`1px solid ${T.border}`}}
+                    onMouseEnter={e=>e.currentTarget.style.background=T.bgAlt}
                     onMouseLeave={e=>e.currentTarget.style.background="none"}>
                     {f.nome}
                   </button>
                 ))}
-                <button onMouseDown={()=>{ setShowDropdown(false); onNovoFornecedor(fornQuery, (novoForn)=>{ setFornQuery(novoForn.nome); set("fornecedor", novoForn.nome); set("fornecedorId", novoForn.id); }); }} style={{width:"100%",padding:"10px 14px",border:"none",borderTop:"1px solid #e2e8f0",background:"none",cursor:"pointer",textAlign:"left",fontSize:"13.5px",color:"#1A5173",fontWeight:700,fontFamily:"inherit",display:"flex",alignItems:"center",gap:"6px"}}>
+                <button onMouseDown={()=>{ setShowDropdown(false); onNovoFornecedor(fornQuery, (novoForn)=>{ setFornQuery(novoForn.nome); set("fornecedor", novoForn.nome); set("fornecedorId", novoForn.id); }); }} style={{width:"100%",padding:"10px 14px",border:"none",borderTop:`1px solid ${T.border}`,background:"none",cursor:"pointer",textAlign:"left",fontSize:"13.5px",color:T.primary,fontWeight:700,fontFamily:"inherit",display:"flex",alignItems:"center",gap:"6px"}}>
                   <span style={{fontSize:"16px"}}>+</span> Criar novo fornecedor
                 </button>
               </div>
@@ -341,14 +341,14 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor, on
               }}>
               {EMPRESAS.map(e=>(
                 <button key={e} tabIndex={0} onClick={()=>set("empresa",e)}
-                  style={{flex:1,padding:"9px 10px",borderRadius:T.radiusSm,cursor:"pointer",fontWeight:600,fontSize:"13px",transition:"all .15s",border:form.empresa===e?"2px solid #1A5173":"2px solid #e2e8f0",background:form.empresa===e?"#C4DDF2":"#f8fafc",color:form.empresa===e?"#1A5173":"#475569"}}>{e}</button>
+                  style={{flex:1,padding:"9px 10px",borderRadius:T.radiusSm,cursor:"pointer",fontWeight:600,fontSize:"13px",transition:"all .15s",border:`2px solid ${form.empresa===e?T.primary:T.border}`,background:form.empresa===e?T.primaryLight:"transparent",color:form.empresa===e?T.primary:T.textSub}}>{e}</button>
               ))}
             </div>
             {errors.empresa&&<span style={S.error}>{errors.empresa}</span>}
           </div>
           <div>
             <label style={S.label}>Número da Nota Fiscal <Red/></label>
-            <input value={form.numero} onChange={e=>set("numero",e.target.value)} placeholder="Ex: NF-001" style={{...S.input,borderColor:errors.numero?"#F24E29":"#e2e8f0"}}/>
+            <input value={form.numero} onChange={e=>set("numero",e.target.value)} placeholder="Ex: NF-001" style={{...S.input,borderColor:errors.numero?T.danger:T.border}}/>
             {errors.numero&&<span style={S.error}>{errors.numero}</span>}
           </div>
           <div>
@@ -378,7 +378,7 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor, on
                 }
               }}
               onFocus={e=>e.target.select()}
-              style={{...S.input,borderColor:errors.emissao?"#F24E29":"#e2e8f0"}}
+              style={{...S.input,borderColor:errors.emissao?T.danger:T.border}}
             />
             {errors.emissao&&<span style={S.error}>{errors.emissao}</span>}
           </div>
@@ -391,7 +391,7 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor, on
                 onChange={handleValorChange}
                 placeholder="0,00"
                 inputMode="numeric"
-                style={{...S.input,paddingLeft:"38px",borderColor:errors.valor?"#F24E29":"#e2e8f0"}}
+                style={{...S.input,paddingLeft:"38px",borderColor:errors.valor?T.danger:T.border}}
               />
             </div>
             {errors.valor&&<span style={S.error}>{errors.valor}</span>}
@@ -412,7 +412,7 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor, on
               }}>
               {[true,false].map(v=>(
                 <button key={String(v)} tabIndex={0} onClick={()=>set("boletosRecebidos",v)}
-                  style={{flex:1,padding:"9px",borderRadius:T.radiusSm,cursor:"pointer",fontWeight:600,fontSize:"13.5px",border:form.boletosRecebidos===v?"2px solid #1A5173":"2px solid #e2e8f0",background:form.boletosRecebidos===v?"#C4DDF2":"#f8fafc",color:form.boletosRecebidos===v?"#1A5173":"#475569"}}>{v?"Sim":"Não"}</button>
+                  style={{flex:1,padding:"9px",borderRadius:T.radiusSm,cursor:"pointer",fontWeight:600,fontSize:"13.5px",border:`2px solid ${form.boletosRecebidos===v?T.primary:T.border}`,background:form.boletosRecebidos===v?T.primaryLight:"transparent",color:form.boletosRecebidos===v?T.primary:T.textSub}}>{v?"Sim":"Não"}</button>
               ))}
             </div>
             {errors.boletosRecebidos&&<span style={S.error}>{errors.boletosRecebidos}</span>}
@@ -512,13 +512,13 @@ function NFModal({ onClose, onSave, editData, fornecedores, onNovoFornecedor, on
           </div>
 
           <div style={{display:"flex",gap:"10px",marginTop:"4px"}}>
-            <button onClick={onClose} style={{flex:1,padding:"11px",borderRadius:"9px",border:"1.5px solid #e2e8f0",background:T.bg,color:"#475569",fontWeight:600,fontSize:"13.5px",cursor:"pointer"}}>Cancelar</button>
-            <button onClick={handleSave} style={{flex:2,padding:"11px",borderRadius:"9px",border:"none",background:"linear-gradient(135deg,#1A5173,#1A5173)",color:"#fff",fontWeight:700,fontSize:"13.5px",cursor:"pointer",boxShadow:"0 4px 14px rgba(37,99,235,.3)"}}>{editData?"Salvar alterações":"Criar Nota Fiscal"}</button>
+            <button onClick={onClose} style={{flex:1,padding:"11px",borderRadius:T.radiusSm,border:`1px solid ${T.border}`,background:"transparent",color:T.textSub,fontWeight:600,fontSize:"13.5px",cursor:"pointer",fontFamily:T.font}}>Cancelar</button>
+            <button onClick={handleSave} style={{flex:2,padding:"11px",borderRadius:T.radiusSm,border:"none",background:T.primary,color:"#fff",fontWeight:700,fontSize:"13.5px",cursor:"pointer",fontFamily:T.font}}>{editData?"Salvar alterações":"Criar Nota Fiscal"}</button>
           </div>
           <p style={{margin:"10px 0 0",textAlign:"center",fontSize:"11px",color:T.textMuted}}>
-            <kbd style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:"4px",padding:"1px 5px",fontSize:"10px",fontFamily:T.mono}}>Ctrl+Enter</kbd> salva &nbsp;·&nbsp;
-            <kbd style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:"4px",padding:"1px 5px",fontSize:"10px",fontFamily:T.mono}}>Esc</kbd> fecha &nbsp;·&nbsp;
-            <kbd style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:"4px",padding:"1px 5px",fontSize:"10px",fontFamily:T.mono}}>← →</kbd> seleciona opções
+            <kbd style={{background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:"4px",padding:"1px 5px",fontSize:"10px",fontFamily:T.mono}}>Ctrl+Enter</kbd> salva &nbsp;·&nbsp;
+            <kbd style={{background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:"4px",padding:"1px 5px",fontSize:"10px",fontFamily:T.mono}}>Esc</kbd> fecha &nbsp;·&nbsp;
+            <kbd style={{background:T.bgAlt,border:`1px solid ${T.border}`,borderRadius:"4px",padding:"1px 5px",fontSize:"10px",fontFamily:T.mono}}>← →</kbd> seleciona opções
           </p>
         </div>
       </div>
@@ -1028,8 +1028,7 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
         <div style={{fontSize:"10px",fontFamily:T.mono,color:T.primary,letterSpacing:".12em",marginBottom:"10px"}}>
           {new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"}).toUpperCase()}
         </div>
-        <h1 style={{margin:"0 0 16px",fontSize:"34px",fontWeight:700,color:T.text,letterSpacing:"-.02em",lineHeight:1.1}}>Visão geral</h1>
-        <div style={{borderBottom:`2px solid ${T.borderStrong}`}}/>
+        <h1 style={{margin:0,fontSize:"34px",fontWeight:700,color:T.text,letterSpacing:"-.02em",lineHeight:1.1}}>Visão geral</h1>
       </div>
 
       {/* Cards de vencimento — valor das parcelas do período */}
@@ -2125,7 +2124,7 @@ function TarefaModal({ onClose, onSave, editData }) {
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.5)",backdropFilter:"blur(4px)",zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}>
-      <div style={{background:T.surface,borderRadius:"16px",width:"100%",maxWidth:"460px",maxHeight:"92vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)",fontFamily:T.font}}>
+      <div style={{background:T.surface,borderRadius:T.radius,width:"100%",maxWidth:"460px",maxHeight:"92vh",overflowY:"auto",boxShadow:"0 4px 32px rgba(0,0,0,0.12)",border:`1px solid ${T.border}`,fontFamily:T.font}}>
         <div style={{padding:"22px 26px 0",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
           <div>
             <h2 style={{margin:0,fontSize:"18px",fontWeight:800,color:T.text}}>{editData?"Editar Tarefa":"Nova Tarefa"}</h2>
@@ -2139,7 +2138,7 @@ function TarefaModal({ onClose, onSave, editData }) {
           {/* Título */}
           <div>
             <label style={S.label}>Título <Red/></label>
-            <input value={form.titulo} onChange={e=>set("titulo",e.target.value)} placeholder="Ex: Verificar boletos do dia" style={{...S.input,borderColor:errors.titulo?"#F24E29":"#e2e8f0"}}/>
+            <input value={form.titulo} onChange={e=>set("titulo",e.target.value)} placeholder="Ex: Verificar boletos do dia" style={{...S.input,borderColor:errors.titulo?T.danger:T.border}}/>
             {errors.titulo&&<span style={S.error}>{errors.titulo}</span>}
           </div>
 
@@ -2150,7 +2149,7 @@ function TarefaModal({ onClose, onSave, editData }) {
               value={form.descricao}
               onChange={e=>set("descricao",e.target.value)}
               rows={4}
-              style={{...S.input,resize:"vertical",minHeight:"80px",borderColor:"#e2e8f0"}}
+              style={{...S.input,resize:"vertical",minHeight:"80px"}}
             />
           </div>
 
@@ -2176,8 +2175,8 @@ function TarefaModal({ onClose, onSave, editData }) {
           </div>
 
           <div style={{display:"flex",gap:"10px",marginTop:"4px"}}>
-            <button onClick={onClose} style={{flex:1,padding:"11px",borderRadius:"9px",border:"1.5px solid #e2e8f0",background:T.bg,color:"#475569",fontWeight:600,fontSize:"13.5px",cursor:"pointer"}}>Cancelar</button>
-            <button onClick={handleSave} style={{flex:2,padding:"11px",borderRadius:"9px",border:"none",background:"linear-gradient(135deg,#1A5173,#1A5173)",color:"#fff",fontWeight:700,fontSize:"13.5px",cursor:"pointer",boxShadow:"0 4px 14px rgba(37,99,235,.3)"}}>{editData?"Salvar":"Criar Tarefa"}</button>
+            <button onClick={onClose} style={{flex:1,padding:"11px",borderRadius:T.radiusSm,border:`1px solid ${T.border}`,background:"transparent",color:T.textSub,fontWeight:600,fontSize:"13.5px",cursor:"pointer",fontFamily:T.font}}>Cancelar</button>
+            <button onClick={handleSave} style={{flex:2,padding:"11px",borderRadius:T.radiusSm,border:"none",background:T.primary,color:"#fff",fontWeight:700,fontSize:"13.5px",cursor:"pointer",fontFamily:T.font}}>{editData?"Salvar":"Criar Tarefa"}</button>
           </div>
         </div>
       </div>
@@ -2222,7 +2221,7 @@ function AvisosPage({ tarefas, setTarefas }) {
           <h1 style={{margin:0,fontSize:"22px",fontWeight:800,color:T.text}}>Avisos & Tarefas</h1>
           <p style={{margin:"3px 0 0",fontSize:"13px",color:T.textSub}}>Tarefas recorrentes do seu dia a dia</p>
         </div>
-        <button onClick={()=>setShowModal(true)} style={{padding:"9px 18px",borderRadius:T.radiusSm,border:"none",background:"linear-gradient(135deg,#1A5173,#1A5173)",color:"#fff",fontWeight:700,fontSize:"13px",cursor:"pointer",boxShadow:"0 4px 12px rgba(37,99,235,.3)"}}>+ Nova Tarefa</button>
+        <button onClick={()=>setShowModal(true)} style={{padding:"9px 18px",borderRadius:T.radiusSm,border:"none",background:T.primary,color:"#fff",fontWeight:600,fontSize:"13px",cursor:"pointer",fontFamily:T.font}}>+ Nova Tarefa</button>
       </div>
 
       {/* Cards resumo */}
@@ -2633,9 +2632,9 @@ function FornecedorModal({ onClose, onSave, editData, initialNome="" }) {
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.5)",zIndex:70,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}>
-      <div style={{background:T.surface,borderRadius:"16px",width:"100%",maxWidth:"440px",boxShadow:"0 24px 64px rgba(0,0,0,0.18)",fontFamily:T.font}}>
+      <div style={{background:T.surface,borderRadius:T.radius,width:"100%",maxWidth:"440px",boxShadow:"0 4px 32px rgba(0,0,0,0.12)",border:`1px solid ${T.border}`,fontFamily:T.font}}>
         <div style={{padding:"22px 26px 0",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-          <h2 style={{margin:0,fontSize:"18px",fontWeight:800,color:T.text}}>{editData?"Editar Fornecedor":"Novo Fornecedor"}</h2>
+          <h2 style={{margin:0,fontSize:"18px",fontWeight:700,color:T.text}}>{editData?"Editar Fornecedor":"Novo Fornecedor"}</h2>
           <button onClick={onClose} style={{border:"none",background:"none",cursor:"pointer",fontSize:"22px",color:T.textMuted}}>×</button>
         </div>
         <div style={{padding:"18px 26px 26px",display:"flex",flexDirection:"column",gap:"14px"}}>
@@ -2650,8 +2649,8 @@ function FornecedorModal({ onClose, onSave, editData, initialNome="" }) {
             />
           </div>
           <div style={{display:"flex",gap:"10px",marginTop:"4px"}}>
-            <button onClick={onClose} style={{flex:1,padding:"11px",borderRadius:"9px",border:"1.5px solid #e2e8f0",background:T.bg,color:"#475569",fontWeight:600,fontSize:"13.5px",cursor:"pointer"}}>Cancelar</button>
-            <button onClick={handleSave} style={{flex:1,padding:"11px",borderRadius:"9px",border:"none",background:"#1A5173",color:"#fff",fontWeight:700,fontSize:"13.5px",cursor:"pointer"}}>Salvar</button>
+            <button onClick={onClose} style={{flex:1,padding:"11px",borderRadius:T.radiusSm,border:`1px solid ${T.border}`,background:"transparent",color:T.textSub,fontWeight:600,fontSize:"13.5px",cursor:"pointer",fontFamily:T.font}}>Cancelar</button>
+            <button onClick={handleSave} style={{flex:1,padding:"11px",borderRadius:T.radiusSm,border:"none",background:T.primary,color:"#fff",fontWeight:700,fontSize:"13.5px",cursor:"pointer",fontFamily:T.font}}>Salvar</button>
           </div>
         </div>
       </div>
@@ -2703,7 +2702,7 @@ function FornecedoresPage({ fornecedores, onSaveFornecedor, setFornecedores, not
           <h1 style={{margin:0,fontSize:"22px",fontWeight:800,color:T.text}}>Fornecedores</h1>
           <p style={{margin:"3px 0 0",fontSize:"13px",color:T.textSub}}>{fornecedores.length} fornecedor(es) cadastrado(s)</p>
         </div>
-        <button onClick={()=>setShowModal(true)} style={{padding:"9px 18px",borderRadius:T.radiusSm,border:"none",background:"linear-gradient(135deg,#1A5173,#1A5173)",color:"#fff",fontWeight:700,fontSize:"13px",cursor:"pointer",boxShadow:"0 4px 12px rgba(37,99,235,.3)"}}>+ Novo Fornecedor</button>
+        <button onClick={()=>setShowModal(true)} style={{padding:"9px 18px",borderRadius:T.radiusSm,border:"none",background:T.primary,color:"#fff",fontWeight:600,fontSize:"13px",cursor:"pointer",fontFamily:T.font}}>+ Novo Fornecedor</button>
       </div>
 
       {/* Busca */}
@@ -2717,7 +2716,7 @@ function FornecedoresPage({ fornecedores, onSaveFornecedor, setFornecedores, not
           <div style={{fontSize:"40px",marginBottom:"12px"}}>🏢</div>
           <p style={{margin:0,fontSize:"15px",fontWeight:600,color:T.textMuted}}>Nenhum fornecedor cadastrado</p>
           <p style={{margin:"6px 0 16px",fontSize:"13px",color:"#cbd5e1"}}>Cadastre fornecedores para vinculá-los às notas fiscais</p>
-          <button onClick={()=>setShowModal(true)} style={{padding:"9px 18px",borderRadius:T.radiusSm,border:"none",background:"#1A5173",color:"#fff",fontWeight:700,fontSize:"13px",cursor:"pointer"}}>+ Novo Fornecedor</button>
+          <button onClick={()=>setShowModal(true)} style={{padding:"9px 18px",borderRadius:T.radiusSm,border:"none",background:T.primary,color:"#fff",fontWeight:600,fontSize:"13px",cursor:"pointer",fontFamily:T.font}}>+ Novo Fornecedor</button>
         </div>
       ) : (
         <div style={{background:T.surface,borderRadius:T.radius,boxShadow:"0 1px 4px rgba(0,0,0,.06)",border:`1px solid ${T.border}`,overflow:"hidden"}}>
@@ -3320,7 +3319,7 @@ export default function App() {
         {page==="avisos"       && <AvisosPage tarefas={tarefasRaw} setTarefas={setTarefas}/>}
       </main>
       {page==="home"&&!vencDetalhe&&(
-        <button onClick={()=>{setPage("notas");setTimeout(()=>setShowModal(true),50);}} style={{position:"fixed",bottom:"28px",right:"28px",padding:"10px 20px",background:T.sidebar,border:"none",color:"#fff",fontSize:"13px",fontWeight:600,cursor:"pointer",fontFamily:T.font,letterSpacing:".02em",zIndex:40}}>+ Nova Nota</button>
+        <button onClick={()=>{setPage("notas");setTimeout(()=>setShowModal(true),50);}} style={{position:"fixed",bottom:"28px",right:"28px",padding:"10px 20px",background:T.primary,border:"none",color:"#fff",fontSize:"13px",fontWeight:600,cursor:"pointer",fontFamily:T.font,letterSpacing:".02em",zIndex:40,borderRadius:T.radiusSm}}>+ Nova NF</button>
       )}
       {novoFornModal!==null && (
         <FornecedorModal onClose={()=>setNovoFornModal(null)} onSave={handleSaveNovoForn} initialNome={novoFornModal}/>
