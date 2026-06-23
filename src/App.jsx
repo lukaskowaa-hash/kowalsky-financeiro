@@ -3060,9 +3060,9 @@ export default function App() {
     if (showLoader) setLoading(true);
     try {
       const [nfs, forns, tars] = await Promise.all([
-        sbFetch("/rest/v1/notas_fiscais?select=*&order=id"),
-        sbFetch("/rest/v1/fornecedores?select=*&order=id"),
-        sbFetch("/rest/v1/tarefas?select=*&order=id"),
+        sbFetch("/rest/v1/notas_fiscais?select=*&order=id&limit=10000"),
+        sbFetch("/rest/v1/fornecedores?select=*&order=id&limit=10000"),
+        sbFetch("/rest/v1/tarefas?select=*&order=id&limit=10000"),
       ]);
       setNotasRaw(nfs.map(dbToNota));
       setFornecedoresRaw(forns.map(dbToFornecedor));
