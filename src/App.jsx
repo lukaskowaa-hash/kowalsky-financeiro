@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+﻿import React, { useState, useMemo, useEffect, useCallback } from "react";
 
 // ─── SHEETJS (Excel export) ───────────────────────────────────────────────────
 if (typeof window !== "undefined" && !window._xlsxLoaded) {
@@ -130,29 +130,23 @@ function tarefaToDB(t) {
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const T = {
-  font:        "'Libre Franklin', sans-serif",
-  mono:        "'IBM Plex Mono', monospace",
-  bg:          "#FFFFFF",
-  bgAlt:       "#FAF9F6",
-  surface:     "#FFFFFF",
-  sidebar:     "#101114",
-  border:      "#ECE9E3",
-  borderStrong:"#1B1C20",
-  text:        "#101114",
-  textSub:     "#6B6F76",
-  textMuted:   "#9A9EA5",
-  primary:     "#DA3A2D",
-  primaryLight:"#FBEAE8",
-  shadow:      "none",
-  shadowMd:    "none",
-  radius:      "6px",
-  radiusSm:    "6px",
-  danger:      "#DA3A2D",
-  dangerLight: "#FBEAE8",
-  accent:      "#DA3A2D",
-  accentSoft:  "#FBEAE8",
-  positive:    "#3F8F5F",
-  warning:     "#B8852A",
+  font:  "'Inter', sans-serif",
+  mono:  "'IBM Plex Mono', monospace",
+  bg:    "#eef4f9",
+  surface: "#ffffff",
+  border: "#d6e6f2",
+  borderStrong: "#5B89A6",
+  text:   "#011526",
+  textSub:"#5B89A6",
+  textMuted:"#6c757d",
+  primary:"#1A5173",
+  primaryLight:"#C4DDF2",
+  shadow: "0 1px 3px rgba(1,21,38,.06), 0 1px 2px rgba(1,21,38,.04)",
+  shadowMd:"0 4px 16px rgba(1,21,38,.10)",
+  radius: "10px",
+  radiusSm:"7px",
+  danger: "#F24E29",
+  dangerLight:"#fdecea",
 };
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -1668,80 +1662,53 @@ const NAV = [
 ];
 
 function Sidebar({ page, setPage, badge, onLogout, userEmail, lastUpdated }) {
-  const [, forceUpdate] = React.useState(0);
-  React.useEffect(() => {
-    const t = setInterval(() => forceUpdate(n=>n+1), 30000);
-    return () => clearInterval(t);
-  }, []);
-  function tempoDesde(d) {
-    if (!d) return null;
-    const diff = Math.floor((new Date() - d) / 1000);
-    if (diff < 60)  return "agora mesmo";
-    if (diff < 120) return "há 1 min";
-    if (diff < 3600) return `há ${Math.floor(diff/60)} min`;
-    return `há ${Math.floor(diff/3600)}h`;
-  }
   return (
-    <div style={{width:"220px",minWidth:"220px",background:T.surface,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",height:"100vh",position:"sticky",top:0,fontFamily:T.font}}>
+    <div style={{width:"236px",minWidth:"236px",background:T.sidebar,display:"flex",flexDirection:"column",height:"100vh",position:"sticky",top:0,fontFamily:T.font}}>
       {/* Logo */}
-      <div style={{padding:"24px 20px 20px"}}>
-        <div style={{display:"flex",alignItems:"center",gap:"9px"}}>
-          <div style={{width:"28px",height:"28px",borderRadius:"7px",background:T.primary,display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <span style={{color:"#fff",fontSize:"13px",fontWeight:800}}>K</span>
-          </div>
-          <div>
-            <p style={{margin:0,fontSize:"13.5px",fontWeight:700,color:T.text,lineHeight:1.2}}>Kowalsky</p>
-            <p style={{margin:0,fontSize:"11px",color:T.textMuted,lineHeight:1.2}}>Gestão Financeira</p>
-          </div>
-        </div>
+      <div style={{padding:"26px 26px 30px"}}>
+        <div style={{color:"#fff",fontWeight:700,fontSize:"20px",letterSpacing:"-.02em",lineHeight:1}}>Kowalsky</div>
+        <div style={{color:"#6e7178",fontSize:"10px",fontFamily:T.mono,letterSpacing:".1em",marginTop:"5px"}}>FINANCEIRO</div>
       </div>
 
       {/* Nav */}
-      <nav style={{flex:1,padding:"4px 10px",display:"flex",flexDirection:"column",gap:"1px"}}>
+      <nav style={{padding:"0 26px",display:"flex",flexDirection:"column",gap:"5px"}}>
         {NAV.map(n=>{
           const active = page===n.id;
           return (
             <button key={n.id} onClick={()=>setPage(n.id)} style={{
-              display:"flex",alignItems:"center",gap:"9px",padding:"8px 10px",
-              borderRadius:T.radiusSm,border:"none",cursor:"pointer",
-              fontFamily:T.font,fontSize:"13px",fontWeight:active?600:500,
-              textAlign:"left",width:"100%",transition:"all .12s",
-              background:active?T.primaryLight:"transparent",
-              color:active?T.primary:T.textSub,
+              display:"flex",alignItems:"center",justifyContent:"space-between",
+              padding:"7px 0",border:"none",
+              borderBottom:active?"1px solid #26282e":"1px solid transparent",
+              cursor:"pointer",fontFamily:T.font,fontSize:"14px",
+              fontWeight:active?600:400,textAlign:"left",width:"100%",
+              background:"transparent",color:active?"#fff":"#9b9ea5",transition:"color .12s",
             }}
-            onMouseEnter={e=>{ if(!active) e.currentTarget.style.background=T.bg; }}
-            onMouseLeave={e=>{ if(!active) e.currentTarget.style.background="transparent"; }}>
-              <span style={{fontSize:"13px",width:"16px",textAlign:"center",opacity:active?1:.7}}>{n.icon}</span>
-              <span style={{flex:1}}>{n.label}</span>
-              {n.id==="avisos" && badge>0 && null}
+            onMouseEnter={e=>{ if(!active) e.currentTarget.style.color="#e6e7ea"; }}
+            onMouseLeave={e=>{ if(!active) e.currentTarget.style.color="#9b9ea5"; }}>
+              <span>{n.label}</span>
+              {active&&<span style={{width:"5px",height:"5px",borderRadius:"50%",background:"#da3a2d",flexShrink:0}}/>}
             </button>
           );
         })}
       </nav>
 
-      {/* User */}
-      <div style={{padding:"12px 16px",borderTop:`1px solid ${T.border}`}}>
-        <div style={{marginBottom:"8px",padding:"5px 8px",borderRadius:T.radiusSm,background:T.bg}}>
-          <p style={{margin:0,fontSize:"10px",color:T.textMuted,fontFamily:T.mono}}>App atualizado em: 12/03</p>
+      {/* Unidade */}
+      <div style={{margin:"24px 26px 0",paddingTop:"18px",borderTop:"1px solid #26282e"}}>
+        <div style={{fontSize:"10px",color:"#6e7178",fontFamily:T.mono,letterSpacing:".1em",marginBottom:"8px"}}>UNIDADE</div>
+        <div style={{color:"#e6e7ea",fontSize:"14px",fontWeight:500,display:"flex",alignItems:"center",gap:"8px"}}>
+          <span style={{width:"6px",height:"6px",borderRadius:"50%",background:"#da3a2d",flexShrink:0}}/>
+          Todas
         </div>
-        {lastUpdated && (
-          <div style={{display:"flex",alignItems:"center",gap:"5px",marginBottom:"10px",padding:"5px 8px",borderRadius:T.radiusSm,background:T.bg}}>
-            <span style={{width:"6px",height:"6px",borderRadius:"50%",background:"#17b26a",flexShrink:0,boxShadow:"0 0 0 2px #dcfce7"}}/>
-            <span style={{fontSize:"11px",color:T.textMuted}}>Atualizado {tempoDesde(lastUpdated)}</span>
-          </div>
-        )}
-        <div style={{display:"flex",alignItems:"center",gap:"9px",marginBottom:"8px"}}>
-          <div style={{width:"30px",height:"30px",borderRadius:"50%",background:T.primaryLight,display:"flex",alignItems:"center",justifyContent:"center",color:T.primary,fontWeight:700,fontSize:"12px",flexShrink:0,border:`1.5px solid ${T.border}`}}>
-            {(userEmail||"?")[0].toUpperCase()}
-          </div>
-          <div style={{overflow:"hidden",flex:1}}>
-            <p style={{margin:0,fontSize:"11px",color:T.textMuted,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{userEmail}</p>
-          </div>
+      </div>
+
+      {/* Rodapé */}
+      <div style={{marginTop:"auto",padding:"0 26px 26px",display:"flex",alignItems:"center",gap:"11px"}}>
+        <div style={{width:"36px",height:"36px",borderRadius:"50%",background:"#f4f2ec",overflow:"hidden",display:"flex",alignItems:"flex-end",justifyContent:"center",flexShrink:0}}>
+          <img src="/assets/mascot.png" style={{width:"32px",marginBottom:"-2px"}} alt="" onError={e=>{e.target.style.display="none";}}/>
         </div>
-        <button onClick={onLogout}
-          style={{width:"100%",padding:"6px",borderRadius:T.radiusSm,border:`1.5px solid ${T.border}`,background:"transparent",color:T.textMuted,fontSize:"12px",fontWeight:500,cursor:"pointer",fontFamily:T.font,textAlign:"left",paddingLeft:"10px"}}>
-          ↩ Sair
-        </button>
+        <span style={{color:"#9b9ea5",fontSize:"12px",flex:1}}>Admin</span>
+        <button onClick={onLogout} title="Sair"
+          style={{background:"transparent",border:"none",color:"#6e7178",fontSize:"14px",cursor:"pointer",padding:"4px",lineHeight:1}}>↩</button>
       </div>
     </div>
   );
@@ -2964,35 +2931,50 @@ function LoginPage({ onLogin }) {
 
   function onKey(e) { if(e.key==="Enter") handleLogin(); }
 
+  const inputStyle = {
+    display:"block",width:"100%",padding:"10px 0",
+    border:"none",borderBottom:"1px solid #d0ccc5",
+    background:"transparent",fontSize:"14px",
+    fontFamily:T.font,color:T.text,outline:"none",
+    boxSizing:"border-box",
+  };
+
   return (
-    <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:T.font}}>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
-      <div style={{background:T.surface,borderRadius:T.radius,boxShadow:T.shadowMd,padding:"40px 44px",width:"100%",maxWidth:"400px",border:`1px solid ${T.border}`}}>
-        <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"28px"}}>
-          <div style={{width:"36px",height:"36px",borderRadius:"9px",background:T.primary,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:"18px"}}>K</div>
-          <div>
-            <div style={{fontSize:"16px",fontWeight:700,color:T.text}}>Kowalsky</div>
-            <div style={{fontSize:"12px",color:T.textMuted}}>Gestão Financeira</div>
+    <div style={{minHeight:"100vh",display:"flex",fontFamily:T.font}}>
+      {/* Left — white form panel */}
+      <div style={{flex:1,background:"#fff",display:"flex",alignItems:"center",justifyContent:"center",padding:"60px 48px"}}>
+        <div style={{width:"100%",maxWidth:"360px"}}>
+          <div style={{fontSize:"10px",fontFamily:T.mono,color:T.primary,letterSpacing:".12em",marginBottom:"14px"}}>GESTÃO FINANCEIRA</div>
+          <h1 style={{margin:"0 0 40px",fontSize:"40px",fontWeight:700,color:T.text,letterSpacing:"-.02em",lineHeight:1.1}}>Kowalsky</h1>
+
+          <div style={{marginBottom:"24px"}}>
+            <label style={{display:"block",fontSize:"11px",fontFamily:T.mono,color:T.textMuted,letterSpacing:".08em",marginBottom:"8px"}}>EMAIL</label>
+            <input value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={onKey}
+              type="email" placeholder="seu@email.com"
+              style={{...inputStyle, borderBottomColor: erro ? T.danger : "#d0ccc5"}}/>
           </div>
+          <div style={{marginBottom:"32px"}}>
+            <label style={{display:"block",fontSize:"11px",fontFamily:T.mono,color:T.textMuted,letterSpacing:".08em",marginBottom:"8px"}}>SENHA</label>
+            <input value={senha} onChange={e=>setSenha(e.target.value)} onKeyDown={onKey}
+              type="password" placeholder="••••••••"
+              style={{...inputStyle, borderBottomColor: erro ? T.danger : "#d0ccc5"}}/>
+            {erro && <span style={{fontSize:"12px",color:T.danger,display:"block",marginTop:"6px"}}>{erro}</span>}
+          </div>
+          <button onClick={handleLogin} disabled={loading}
+            style={{width:"100%",padding:"13px",border:"none",background:loading?"#2e3038":T.sidebar,color:"#fff",fontWeight:600,fontSize:"14px",cursor:loading?"not-allowed":"pointer",fontFamily:T.font,letterSpacing:".02em",transition:"background .15s"}}>
+            {loading ? "Entrando..." : "Entrar"}
+          </button>
         </div>
-        <h2 style={{margin:"0 0 24px",fontSize:"20px",fontWeight:700,color:T.text}}>Entrar</h2>
-        <div style={{marginBottom:"14px"}}>
-          <label style={S.label}>Email</label>
-          <input value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={onKey}
-            type="email" placeholder="seu@email.com"
-            style={{...S.input, borderColor: erro ? T.danger : T.border}}/>
+      </div>
+
+      {/* Right — dark panel */}
+      <div style={{width:"440px",background:T.sidebar,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"60px 48px"}}>
+        <div style={{width:"300px",height:"300px",borderRadius:"50%",background:"#f4f2ec",display:"flex",alignItems:"flex-end",justifyContent:"center",overflow:"hidden",boxShadow:"0 0 0 16px #1a1c20"}}>
+          <img src="/assets/mascot.png" style={{width:"260px",marginBottom:"0"}} alt="mascot" onError={e=>{e.target.style.display="none";}}/>
         </div>
-        <div style={{marginBottom:"22px"}}>
-          <label style={S.label}>Senha</label>
-          <input value={senha} onChange={e=>setSenha(e.target.value)} onKeyDown={onKey}
-            type="password" placeholder="••••••••"
-            style={{...S.input, borderColor: erro ? T.danger : T.border}}/>
-          {erro && <span style={S.error}>{erro}</span>}
-        </div>
-        <button onClick={handleLogin} disabled={loading}
-          style={{width:"100%",padding:"11px",borderRadius:T.radiusSm,border:"none",background:loading?T.primaryLight:T.primary,color:loading?T.primary:"#fff",fontWeight:700,fontSize:"14px",cursor:loading?"not-allowed":"pointer",fontFamily:T.font,transition:"all .15s"}}>
-          {loading ? "Entrando..." : "Entrar"}
-        </button>
+        <p style={{marginTop:"40px",color:"#9b9ea5",fontSize:"15px",textAlign:"center",lineHeight:1.6,fontStyle:"italic"}}>
+          Tudo nos conformes,<br/>com classe.
+        </p>
       </div>
     </div>
   );
