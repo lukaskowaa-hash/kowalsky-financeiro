@@ -1025,7 +1025,7 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
   return (
     <div style={{padding:"36px 40px",fontFamily:T.font,maxWidth:"1200px"}}>
       <div style={{marginBottom:"32px"}}>
-        <div style={{fontSize:"10px",fontFamily:T.mono,color:T.primary,letterSpacing:".12em",marginBottom:"10px"}}>
+        <div style={{fontSize:"10px",fontFamily:T.mono,color:T.textMuted,letterSpacing:".12em",marginBottom:"10px"}}>
           {new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"}).toUpperCase()}
         </div>
         <h1 style={{margin:0,fontSize:"34px",fontWeight:700,color:T.text,letterSpacing:"-.02em",lineHeight:1.1}}>Visão geral</h1>
@@ -1034,9 +1034,9 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
       {/* Cards de vencimento — valor das parcelas do período */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",borderTop:`2px solid ${T.borderStrong}`,marginBottom:"0"}}>
         {[
-          {label:"Hoje",   notas:vencHoje,   total:totalHoje,   parcelas:parcelasHoje,   accent:T.danger, tipo:"hoje"},
-          {label:"Amanhã", notas:vencAmanha, total:totalAmanha, parcelas:parcelasAmanha, accent:T.text,   tipo:"amanha"},
-          {label:"Semana", notas:vencSemana, total:totalSemana, parcelas:parcelasSemana, accent:T.text,   tipo:"semana"},
+          {label:"Hoje",   notas:vencHoje,   total:totalHoje,   parcelas:parcelasHoje,   tipo:"hoje"},
+          {label:"Amanhã", notas:vencAmanha, total:totalAmanha, parcelas:parcelasAmanha, tipo:"amanha"},
+          {label:"Semana", notas:vencSemana, total:totalSemana, parcelas:parcelasSemana, tipo:"semana"},
         ].map((c,i)=>(
           <div key={c.label} onClick={()=>c.notas.length>0&&onVerDetalhes(c.tipo,c.label,c.notas)}
             style={{padding:"20px 24px",borderRight:i<2?`1px solid ${T.border}`:"none",borderBottom:`1px solid ${T.border}`,cursor:c.notas.length>0?"pointer":"default",transition:"opacity .12s"}}
@@ -1044,9 +1044,9 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
             onMouseLeave={e=>{ e.currentTarget.style.opacity="1"; }}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"10px"}}>
               <span style={{fontSize:"10px",fontFamily:T.mono,color:T.textMuted,letterSpacing:".1em"}}>VENCIMENTOS · {c.label.toUpperCase()}</span>
-              {c.parcelas>0&&<span style={{fontSize:"11px",color:c.accent,fontWeight:500}}>{c.parcelas} parcela(s)</span>}
+              {c.parcelas>0&&<span style={{fontSize:"11px",color:T.textSub,fontWeight:500}}>{c.parcelas} parcela(s)</span>}
             </div>
-            <p style={{margin:"0 0 6px",fontSize:"26px",fontWeight:700,color:c.notas.length>0?c.accent:T.textMuted,letterSpacing:"-.03em",fontFamily:T.mono,lineHeight:1}}>{fmt(c.total)}</p>
+            <p style={{margin:"0 0 6px",fontSize:"26px",fontWeight:700,color:c.notas.length>0?T.text:T.textMuted,letterSpacing:"-.03em",fontFamily:T.mono,lineHeight:1}}>{fmt(c.total)}</p>
             <p style={{margin:0,fontSize:"11px",color:T.textMuted}}>{c.notas.length>0?"Ver detalhes →":"Nenhum vencimento"}</p>
           </div>
         ))}
@@ -1067,7 +1067,7 @@ function HomePage({ notas, tarefas, setTarefas, onVerDetalhes }) {
               <span style={{fontSize:"10px",fontFamily:T.mono,color:T.textMuted,letterSpacing:".1em"}}>SEM BOLETO · {c.label.toUpperCase()}</span>
               {c.count>0&&<div style={{width:"6px",height:"6px",borderRadius:"50%",background:c.accent}}/>}
             </div>
-            <p style={{margin:0,fontSize:"18px",fontWeight:700,color:c.count>0?c.accent:T.textMuted,fontFamily:T.mono,letterSpacing:"-.02em"}}>
+            <p style={{margin:0,fontSize:"18px",fontWeight:700,color:c.count>0?T.text:T.textMuted,fontFamily:T.mono,letterSpacing:"-.02em"}}>
               {c.count>0?`${c.count} parcela(s)`:"Nenhuma"}
             </p>
             {c.count>0&&<p style={{margin:"4px 0 0",fontSize:"11px",color:T.textMuted}}>Ver detalhes →</p>}
