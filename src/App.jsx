@@ -1710,7 +1710,7 @@ function Sidebar({ page, setPage, badge, onLogout, userEmail, lastUpdated }) {
       {/* Rodapé */}
       <div style={{marginTop:"auto",padding:"0 26px 26px",display:"flex",alignItems:"center",gap:"11px"}}>
         <div style={{width:"36px",height:"36px",borderRadius:"50%",background:"#f4f2ec",overflow:"hidden",display:"flex",alignItems:"flex-end",justifyContent:"center",flexShrink:0}}>
-          <img src="/assets/mascot.png" style={{width:"32px",marginBottom:"-2px"}} alt="" onError={e=>{e.target.style.display="none";}}/>
+          <img src="/mascot.png" style={{width:"32px",marginBottom:"-2px"}} alt="" onError={e=>{e.target.style.display="none";}}/>
         </div>
         <span style={{color:"#9b9ea5",fontSize:"12px",flex:1}}>Admin</span>
         <button onClick={onLogout} title="Sair"
@@ -2976,7 +2976,7 @@ function LoginPage({ onLogin }) {
       {/* Right — dark panel */}
       <div style={{width:"440px",background:T.sidebar,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"60px 48px"}}>
         <div style={{width:"300px",height:"300px",borderRadius:"50%",background:"#f4f2ec",display:"flex",alignItems:"flex-end",justifyContent:"center",overflow:"hidden",boxShadow:"0 0 0 16px #1a1c20"}}>
-          <img src="/assets/mascot.png" style={{width:"260px",marginBottom:"0"}} alt="mascot" onError={e=>{e.target.style.display="none";}}/>
+          <img src="/mascot.png" style={{width:"260px",marginBottom:"0"}} alt="mascot" onError={e=>{e.target.style.display="none";}}/>
         </div>
         <p style={{marginTop:"40px",color:"#9b9ea5",fontSize:"15px",textAlign:"center",lineHeight:1.6,fontStyle:"italic"}}>
           Tudo nos conformes,<br/>com classe.
