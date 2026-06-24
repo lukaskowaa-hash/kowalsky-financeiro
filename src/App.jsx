@@ -1714,13 +1714,27 @@ function Sidebar({ page, setPage, badge, onLogout, userEmail, lastUpdated }) {
       </div>
 
       {/* Rodapé */}
-      <div style={{marginTop:"auto",padding:"0 26px 26px",display:"flex",alignItems:"center",gap:"11px"}}>
-        <div style={{width:"36px",height:"36px",borderRadius:"50%",background:"#f4f2ec",overflow:"hidden",display:"flex",alignItems:"flex-end",justifyContent:"center",flexShrink:0}}>
-          <img src="/mascot.png" style={{width:"32px",marginBottom:"-2px"}} alt="" onError={e=>{e.target.style.display="none";}}/>
+      <div style={{marginTop:"auto",padding:"0 26px 26px"}}>
+        {lastUpdated && (
+          <div style={{fontSize:"10px",color:"#6e7178",fontFamily:T.mono,marginBottom:"12px",paddingTop:"14px",borderTop:"1px solid #26282e"}}>
+            {"Atualizado " + (()=>{
+              const diff = Math.floor((new Date() - lastUpdated)/1000);
+              if(diff<60) return "agora mesmo";
+              if(diff<3600) return `há ${Math.floor(diff/60)} min`;
+              return `há ${Math.floor(diff/3600)}h`;
+            })()}
+          </div>
+        )}
+        <div style={{display:"flex",alignItems:"center",gap:"11px"}}>
+          <div style={{width:"36px",height:"36px",borderRadius:"50%",background:"#f4f2ec",overflow:"hidden",display:"flex",alignItems:"flex-end",justifyContent:"center",flexShrink:0}}>
+            <img src="/mascot.png" style={{width:"32px",marginBottom:"-2px"}} alt="" onError={e=>{e.target.style.display="none";}}/>
+          </div>
+          <div style={{flex:1,overflow:"hidden"}}>
+            <div style={{color:"#e6e7ea",fontSize:"12px",fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{userEmail||"Usuário"}</div>
+          </div>
+          <button onClick={onLogout} title="Sair"
+            style={{background:"transparent",border:"none",color:"#6e7178",fontSize:"14px",cursor:"pointer",padding:"4px",lineHeight:1,flexShrink:0}}>↩</button>
         </div>
-        <span style={{color:"#9b9ea5",fontSize:"12px",flex:1}}>Admin</span>
-        <button onClick={onLogout} title="Sair"
-          style={{background:"transparent",border:"none",color:"#6e7178",fontSize:"14px",cursor:"pointer",padding:"4px",lineHeight:1}}>↩</button>
       </div>
     </div>
   );
@@ -2985,7 +2999,7 @@ function LoginPage({ onLogin }) {
           <img src="/mascot.png" style={{width:"260px",marginBottom:"0"}} alt="mascot" onError={e=>{e.target.style.display="none";}}/>
         </div>
         <p style={{marginTop:"40px",color:"#9b9ea5",fontSize:"15px",textAlign:"center",lineHeight:1.6,fontStyle:"italic"}}>
-          Tudo nos conformes,<br/>com classe.
+          Coma peixe,<br/>viva mais.
         </p>
       </div>
     </div>
