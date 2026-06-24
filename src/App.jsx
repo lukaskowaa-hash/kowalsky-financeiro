@@ -78,6 +78,8 @@ function dbToNota(r) {
     vencimentos: r.vencimentos || [],
     parcelasPagas: r.parcelas_pagas || [],
     observacao: r.observacao || "",
+    lancadoPor: r.lancado_por || null,
+    lancadoEm:  r.lancado_em  || null,
   };
 }
 
@@ -1450,6 +1452,8 @@ function NotasFiscaisPage({ notas, setNotas, showModal, setShowModal, fornecedor
     {label:"Valor Total", sortKey:"valor",       active:fValor,   onApply:setFValor,   onClear:()=>setFValor([]),   vals:uValor  },
     {label:"Parcelas",    sortKey:"parcelas",    active:null,     onApply:null,        onClear:null,                vals:null    },
     {label:"Status",      sortKey:"status",      active:fStatus,  onApply:setFStatus,  onClear:()=>setFStatus([]),  vals:uStatus },
+    {label:"Lançada em",  sortKey:"lancadoEm",   active:null,     onApply:null,        onClear:null,                vals:null    },
+    {label:"Usuário",     sortKey:"lancadoPor",  active:null,     onApply:null,        onClear:null,                vals:null    },
     {label:"Ações",       sortKey:null,          active:null,     onApply:null,        onClear:null,                vals:null    },
   ];
 
@@ -1531,6 +1535,8 @@ function NotasFiscaisPage({ notas, setNotas, showModal, setShowModal, fornecedor
                       <td style={{padding:"12px 14px",fontWeight:600,color:T.text,fontFamily:T.mono,fontSize:"12.5px"}}>{fmt(n.valor)}</td>
                       <td style={{padding:"12px 14px",color:T.textSub,textAlign:"center"}}>{n.parcelas}</td>
                       <td style={{padding:"12px 14px"}}><span style={{fontSize:"11.5px",fontWeight:500,padding:"2px 9px",borderRadius:"20px",background:st.bg,color:st.color}}>{st.label}</span></td>
+                      <td style={{padding:"12px 14px",color:T.textMuted,fontSize:"12px",fontFamily:T.mono}}>{n.lancadoEm ? new Date(n.lancadoEm).toLocaleDateString("pt-BR") : "—"}</td>
+                      <td style={{padding:"12px 14px",color:T.textMuted,fontSize:"12px",maxWidth:"140px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{n.lancadoPor || "—"}</td>
                       <td style={{padding:"12px 14px"}} onClick={e=>e.stopPropagation()}>
                         <div style={{display:"flex",gap:"4px",alignItems:"center"}}>
                           {n.observacao && (
@@ -3134,7 +3140,7 @@ export default function App() {
     } else {
       // insert
       const [created] = await sbFetch("/rest/v1/notas_fiscais", {
-        method: "POST", body: JSON.stringify(body),
+        method: "POST", body: JSON.stringify({ ...body, lancado_por: session?.user?.email || null, lancado_em: new Date().toISOString() }),
       });
       return created ? dbToNota(created) : nota;
     }
